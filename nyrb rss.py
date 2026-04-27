@@ -25,7 +25,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 # 【修复点 1】：改用 -latest 后缀，兼容性最强
 # 方案 A (最稳定的基础模型，绝对不会 404)：
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
@@ -37,7 +37,7 @@ HEADERS = {
 # ==========================================
 # 2. 内容抓取 (强攻首页提取)
 # ==========================================
-def get_latest_article_urls(max_items=10):
+def get_latest_article_urls(max_items=8):
     homepage_url = "https://www.nybooks.com/"
     logging.info(f"由于官方 RSS 为空，改为直接从主页 {homepage_url} 提取最新文章链接...")
 
@@ -204,8 +204,8 @@ def main():
             processed_items.append(data)
 
             if i < len(urls) - 1:
-                logging.info("⏳ 休息 20 秒保护配额...")
-                time.sleep(20)
+                logging.info("⏳ 休息 25 秒保护配额...")
+                time.sleep(25)
 
     if processed_items:
         generate_rss(processed_items)
