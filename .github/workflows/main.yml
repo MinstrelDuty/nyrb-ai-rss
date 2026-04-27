@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       # 1. 把你的代码下载到云服务器
       - name: Checkout repository
@@ -41,5 +43,5 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add nyrb_ai_enhanced.xml
-          # 如果文件有更新，就提交到仓库
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update NYRB RSS [skip ci]" && git push)
+          # 如果文件有更新，先拉取最新代码合并，再推送到仓库
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update NYRB RSS [skip ci]" && git pull --rebase origin main && git push)
