@@ -1,0 +1,45 @@
+name: NYRB AI RSS Generator
+
+on:
+  schedule:
+    # ⏰ 时间表：UTC时间0点，即北京时间早上8点。每周三(3)和周六(6)运行
+    - cron: '0 0 * * 3,6'
+  # 允许在网页上手动点击运行（方便你随时测试）
+  workflow_dispatch: 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 把你的代码下载到云服务器
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 安装 Python 环境
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # 3. 安装脚本需要的依赖库
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 feedparser markdown feedgen google-generativeai
+
+      # 4. 运行你的 Python 脚本（并从保险箱里取出 API Key 喂给它）
+      - name: Run Python script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          # 注意：如果你的文件名里有空格(如 nyrb rss.py)，建议在本地把它重命名为 nyrb_rss.py 再上传，否则这里容易报错。
+          python "nyrb rss.py"
+
+      # 5. 把 AI 刚写好的 XML 文件存回你的 GitHub 仓库
+      - name: Commit and push XML file
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add nyrb_ai_enhanced.xml
+          # 如果文件有更新，就提交到仓库
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update NYRB RSS [skip ci]" && git push)
