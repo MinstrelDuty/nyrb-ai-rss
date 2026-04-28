@@ -35,7 +35,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           # 注意：如果你的文件名里有空格(如 nyrb rss.py)，建议在本地把它重命名为 nyrb_rss.py 再上传，否则这里容易报错。
-          python "nyrb rss.py"
+          python "nyrbrss.py"
 
   # 5. 把 AI 刚写好的 XML 文件存回你的 GitHub 仓库
       - name: Commit and push XML file
