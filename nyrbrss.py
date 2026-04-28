@@ -1,4 +1,3 @@
-from openai import OpenAI
 import os
 import time  # <--- 新增这行，用于控制程序暂停
 import logging
@@ -8,18 +7,18 @@ import requests
 import feedparser
 import markdown
 import re
-from bs4 import BeautifulSoup
-from feedgen.feed import FeedGenerator
 from datetime import datetime, timezone
+import time
+import logging
+import markdown
+from feedgen.feed import FeedGenerator
+from bs4 import BeautifulSoup
+import google.generativeai as genai  # 👈 导回 Gemini 库
 
-# ==========================================
-# 1. 配置与初始化
-# ==========================================
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# 【🔑 请把下面的中文替换成你的真实 API Key】
-# 提取环境变量中的 OpenAI 秘钥
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# 初始化 Gemini
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# 使用稳定版 2.0
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 
 
@@ -123,15 +122,15 @@ def scrape_article(url):
 
 # ==========================================
 # ==========================================
-# 3. AI 深入处理 (GPT-4o-mini 版本)
+# 3. AI 深入处理 (自带 429 智能重试与截断)
 # ==========================================
 def process_with_ai(article_data):
     text = article_data.get("text", "")
     if len(text) < 500:
         return "<p>文章内容过短，无法生成 AI 总结。</p>"
 
-    # GPT-4o-mini 支持 12 万字，这里放宽到前 2 万字符完全没问题
-    text = text[:20000] 
+    # 🚀 极其关键：只取前 8000 个字符，彻底防止瞬间字数超载！
+    text = text[:8000] 
 
     system_prompt = """你是一位博学多识的书评人。请阅读文章并以 Markdown 格式返回：
 1. 📰 **核心摘要**：300字概括。
@@ -139,19 +138,14 @@ def process_with_ai(article_data):
 3. 📚 **扩展阅读**：推荐2-3本书。
 请全部使用中文，多用 Emoji 和粗体。"""
 
+    full_prompt = f"{system_prompt}\n\n文章标题：《{article_data['title']}》\n正文：\n{text}"
+    
     max_retries = 3
     for attempt in range(max_retries):
         logging.info(f"🤖 正在处理: {article_data['title']} (第 {attempt + 1} 次尝试)")
         try:
-            # 调用 OpenAI API
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"文章标题：《{article_data['title']}》\n正文：\n{text}"}
-                ]
-            )
-            ai_markdown = response.choices[0].message.content
+            response = model.generate_content(full_prompt)
+            ai_markdown = response.text
             ai_html = markdown.markdown(ai_markdown, extensions=['extra'])
             
             wrapper = f'<div style="font-size:16px; line-height:1.6; color:#333;">{ai_html}</div>'
@@ -163,9 +157,9 @@ def process_with_ai(article_data):
             
         except Exception as e:
             error_msg = str(e)
-            if 'RateLimitError' in error_msg or '429' in error_msg:
-                wait_time = 30  # GPT 的限流恢复通常很快
-                logging.warning(f"⚠️ 触发 GPT 限流，代码休眠 {wait_time} 秒后重试...")
+            if '429' in error_msg or 'Quota' in error_msg:
+                wait_time = 60  # 遇到限流，强制深呼吸 60 秒
+                logging.warning(f"⚠️ 触发 API 限流 (429)，代码休眠 {wait_time} 秒后重试...")
                 time.sleep(wait_time)
             else:
                 logging.error(f"❌ AI 处理发生严重错误: {e}")
