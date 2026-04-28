@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>纽约书评 - AI 深度精读版</title>
+    <style>
+        body { background-color: #f0f2f5; color: #333; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.8; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+        .header { text-align: center; margin-bottom: 50px; border-bottom: 2px solid #eee; padding-bottom: 30px; }
+        .header h1 { font-size: 32px; color: #111; margin-bottom: 10px; font-weight: 800; letter-spacing: 1px; }
+        .header p { color: #666; font-size: 15px; margin: 0; }
+        .article { margin-bottom: 60px; padding-bottom: 40px; border-bottom: 1px dashed #e0e0e0; }
+        .article:last-child { border-bottom: none; }
+        .article-title { font-size: 26px; color: #1a1a1a; margin-bottom: 15px; font-weight: bold; line-height: 1.4; }
+        .article-date { font-size: 13px; color: #999; margin-bottom: 25px; }
+        .article-content { font-size: 17px; color: #444; }
+        .article-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 20px 0; display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .article-content h2, .article-content h3 { color: #222; margin-top: 35px; margin-bottom: 15px; }
+        .article-content strong { color: #d32f2f; }
+        .loading { text-align: center; font-size: 18px; color: #888; padding: 50px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📰 纽约书评 - AI 精读杂志</h1>
+            <p>全自动抓取 · DeepSeek 强力驱动 · 无损排版</p>
+        </div>
+        <div id="content" class="loading">正在拼命加载最新文章，请稍候... 🚀</div>
+    </div>
+
+    <script>
+        // 自动拉取同目录下的 XML 文件并渲染
+        fetch('nyrb_ai_enhanced.xml?t=' + new Date().getTime())
+            .then(response => response.text())
+            .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+            .then(data => {
+                const items = data.querySelectorAll("item");
+                const contentDiv = document.getElementById("content");
+                if (items.length === 0) {
+                    contentDiv.innerHTML = "<h2 style='color:red;text-align:center;'>暂无文章，请确认 XML 文件已生成。</h2>";
+                    return;
+                }
+                
+                let html = "";
+                items.forEach(item => {
+                    const title = item.querySelector("title")?.textContent || "无标题";
+                    const pubDate = item.querySelector("pubDate")?.textContent || "未知时间";
+                    
+                    // 寻找全文标签
+                    let contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
+                    let content = contentNode ? contentNode.textContent : (item.querySelector("description")?.textContent || "无正文");
+
+                    html += `
+                        <div class="article">
+                            <div class="article-title">${title}</div>
+                            <div class="article-date">更新时间: ${pubDate}</div>
+                            <div class="article-content">${content}</div>
+                        </div>
+                    `;
+                });
+                contentDiv.innerHTML = html;
+            })
+            .catch(error => {
+                document.getElementById("content").innerHTML = `<h2 style='color:red;text-align:center;'>加载失败: ${error}</h2>`;
+            });
+    </script>
+</body>
+</html>
