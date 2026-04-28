@@ -2,8 +2,8 @@ name: NYRB AI RSS Generator
 
 on:
   schedule:
-    - cron: '0 8 * * 1,4'  # 每周一和周四自动运行
-  workflow_dispatch:       # 允许手动点击运行
+    - cron: '0 8 * * 1,4'  
+  workflow_dispatch:       
 
 jobs:
   build:
@@ -20,13 +20,15 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
+        # 🚀 核心修改：安装了 openai 库
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 feedparser markdown feedgen google-generativeai
+          pip install requests beautifulsoup4 feedparser markdown feedgen openai
 
       - name: Run Python script
+        # 🚀 核心修改：把环境变量改成了 DEEPSEEK_API_KEY
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           python "nyrbrss.py"
 
@@ -38,7 +40,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "没有新内容，无需提交。"
           else
-            git commit -m "Auto-update NYRB RSS [skip ci]"
+            git commit -m "Auto-update NYRB RSS (DeepSeek) [skip ci]"
             git pull --rebase -X theirs origin main
             git push
           fi
