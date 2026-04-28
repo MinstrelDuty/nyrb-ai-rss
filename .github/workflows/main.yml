@@ -37,19 +37,18 @@ jobs:
           # 注意：如果你的文件名里有空格(如 nyrb rss.py)，建议在本地把它重命名为 nyrb_rss.py 再上传，否则这里容易报错。
           python "nyrb rss.py"
 
-    # 5. 把 AI 刚写好的 XML 文件存回你的 GitHub 仓库
+  # 5. 把 AI 刚写好的 XML 文件存回你的 GitHub 仓库
       - name: Commit and push XML file
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add nyrb_ai_enhanced.xml
           
-          # 检查文件是否真的有变化
           if git diff --staged --quiet; then
             echo "没有新内容，无需提交。"
           else
             git commit -m "Auto-update NYRB RSS [skip ci]"
-            # 🚀 核心排队指令：不管别人改了什么，我先把最新状态拉下来，再把我的 xml 传上去！
-            git pull --rebase origin main
+            # 🚀 霸道覆盖指令：拉取最新代码时如果出现冲突，无条件使用机器人手里最新的文件！
+            git pull --rebase -X theirs origin main
             git push
           fi
