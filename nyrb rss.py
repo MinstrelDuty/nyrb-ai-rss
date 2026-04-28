@@ -214,8 +214,8 @@ def main():
             processed_items.append(data)
 
             if i < len(urls) - 1:
-                logging.info("⏳ 休息 25 秒保护配额...")
-                time.sleep(25)
+                logging.info("⏳ 休息 30 秒保护配额...")
+                time.sleep(30)
 
     if processed_items:
         generate_rss(processed_items)
