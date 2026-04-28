@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 import google.generativeai as genai  # 👈 导回 Gemini 库
 
 # 初始化 Gemini
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY", "").strip(" '\""))
 # 使用稳定版 2.0
 model = genai.GenerativeModel('gemini-2.0-flash')
 
