@@ -9,7 +9,6 @@ import feedparser
 import markdown
 import re
 from bs4 import BeautifulSoup
-import google.generativeai as genai
 from feedgen.feed import FeedGenerator
 from datetime import datetime, timezone
 
@@ -23,10 +22,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-genai.configure(api_key=GEMINI_API_KEY)
-# 【修复点 1】：改用 -latest 后缀，兼容性最强
-# 方案 A (最稳定的基础模型，绝对不会 404)：
-model = genai.GenerativeModel('gemini-2.0-flash')
+
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
