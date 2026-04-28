@@ -35,7 +35,7 @@ HEADERS = {
 # ==========================================
 # 1. 抓取最新文章链接
 # ==========================================
-def get_latest_article_urls(max_items=4):
+def get_latest_article_urls(max_items=8):
     logging.info("正在从 NYRB 主页提取最新文章链接...")
     urls = []
     try:
@@ -136,7 +136,7 @@ def main():
         logging.error("⛔ 秘钥为空，程序强行终止！")
         return
 
-    urls = get_latest_article_urls(max_items=4) 
+    urls = get_latest_article_urls(max_items=8) 
     if not urls:
         return
 
@@ -146,18 +146,20 @@ def main():
     fg.description("由 DeepSeek 自动抓取并提供中文深度总结的 NYRB 订阅源")
     fg.language("zh-CN")
 
-    for i, url in enumerate(urls):
-        logging.info(f"正在抓取文章: {url}")
-        article_data = scrape_article(url)
-        
-        if article_data and article_data["text"]:
+    
+if article_data and article_data["text"]:
             ai_summary_html = process_with_ai(article_data)
             
             fe = fg.add_entry()
             fe.title(article_data["title"])
             fe.link(href=url)
-            fe.description(ai_summary_html)
             
+            # ✅ 改成下面这两行：
+            # 1. 给阅读器一个短引子，防止它报错
+            fe.description("AI 深度精读已生成，请点击展开查看完整内容。")
+            # 2. 把排版完美的完整文章，装进专属的全文扩展标签里
+            fe.content(content=ai_summary_html, type='html')
+    
             if i < len(urls) - 1:
                 logging.info("⏳ 休息 20 秒保护配额...")
                 time.sleep(20)
