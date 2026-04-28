@@ -129,6 +129,7 @@ def process_with_ai(article_data):
     return "<p style='color:red;'>⚠️ 经过多次重试依然触发限制，跳过此文章摘要。</p>"
 
 # ==========================================
+# ==========================================
 # 4. 主函数：生成 RSS
 # ==========================================
 def main():
@@ -136,6 +137,7 @@ def main():
         logging.error("⛔ 秘钥为空，程序强行终止！")
         return
 
+    # 这里已经帮你改成了 8 篇
     urls = get_latest_article_urls(max_items=8) 
     if not urls:
         return
@@ -146,24 +148,26 @@ def main():
     fg.description("由 DeepSeek 自动抓取并提供中文深度总结的 NYRB 订阅源")
     fg.language("zh-CN")
 
-    
-if article_data and article_data["text"]:
+    for i, url in enumerate(urls):
+        logging.info(f"正在抓取文章: {url}")
+        article_data = scrape_article(url)
+        
+        if article_data and article_data["text"]:
             ai_summary_html = process_with_ai(article_data)
             
             fe = fg.add_entry()
             fe.title(article_data["title"])
             fe.link(href=url)
             
-            # ✅ 改成下面这两行：
-            # 1. 给阅读器一个短引子，防止它报错
+            # ✅ 完美的 RSS 全文支持
             fe.description("AI 深度精读已生成，请点击展开查看完整内容。")
-            # 2. 把排版完美的完整文章，装进专属的全文扩展标签里
             fe.content(content=ai_summary_html, type='html')
-    
+            
             if i < len(urls) - 1:
                 logging.info("⏳ 休息 20 秒保护配额...")
                 time.sleep(20)
 
+    # 这两行已经完美缩进对齐
     fg.rss_file('nyrb_ai_enhanced.xml', pretty=True)
     logging.info("✅ RSS 文件 nyrb_ai_enhanced.xml 生成完毕！")
 
