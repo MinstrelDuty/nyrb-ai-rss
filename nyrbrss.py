@@ -133,7 +133,7 @@ def process_with_ai(article_data):
         return "<p>文章内容过短，无法生成 AI 总结。</p>"
 
     # 限制单篇文章字数，防止单篇直接超载
-    text = text[:30000] 
+    text = text[:15000] 
 
     system_prompt = """你是一位博学多识的书评人。请阅读文章并以 Markdown 格式返回：
 1. 📰 **核心摘要**：300字概括。
