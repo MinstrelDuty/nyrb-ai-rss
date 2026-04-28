@@ -25,7 +25,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 # 【修复点 1】：改用 -latest 后缀，兼容性最强
 # 方案 A (最稳定的基础模型，绝对不会 404)：
-model = genai.GenerativeModel('gemini-2.0-flash')
+model = genai.GenerativeModel('gemini-2.0-flash-lite')
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
@@ -132,34 +132,44 @@ def process_with_ai(article_data):
     if len(text) < 500:
         return "<p>文章内容过短，无法生成 AI 总结。</p>"
 
-    # 限制字数防止 API 报错，但保留足够信息
-    text = text[:30000]
+    # 限制单篇文章字数，防止单篇直接超载
+    text = text[:30000] 
 
     system_prompt = """你是一位博学多识的书评人。请阅读文章并以 Markdown 格式返回：
-1. 📰 **核心摘要**：300字概括论点。
+1. 📰 **核心摘要**：300字概括。
 2. 💡 **AI 评述**：深度分析视角。
 3. 📚 **扩展阅读**：推荐2-3本书。
 请全部使用中文，多用 Emoji 和粗体。"""
 
     full_prompt = f"{system_prompt}\n\n文章标题：《{article_data['title']}》\n正文：\n{text}"
-
-    logging.info(f"🤖 正在处理: {article_data['title']}")
-    try:
-        response = model.generate_content(full_prompt)
-        ai_markdown = response.text
-        ai_html = markdown.markdown(ai_markdown, extensions=['extra'])
-
-        # 加上一个“容器”防止阅读器乱排版
-        wrapper = f'<div style="font-size:16px; line-height:1.6; color:#333;">{ai_html}</div>'
-
-        if article_data.get("image_url"):
-            img = f'<img src="{article_data["image_url"]}" style="width:100%; border-radius:10px;"/><br>'
-            return img + wrapper
-        return wrapper
-    except Exception as e:
-        # 如果是 429 错误，这里会记录
-        logging.error(f"AI 处理失败: {e}")
-        return f"<p style='color:red;'>AI 处理期间发生错误 (请检查配额): {e}</p>"
+    
+    # 🚀 核心改造：最多允许失败重试 3 次
+    max_retries = 3
+    for attempt in range(max_retries):
+        logging.info(f"🤖 正在处理: {article_data['title']} (第 {attempt + 1} 次尝试)")
+        try:
+            response = model.generate_content(full_prompt)
+            ai_markdown = response.text
+            ai_html = markdown.markdown(ai_markdown, extensions=['extra'])
+            
+            wrapper = f'<div style="font-size:16px; line-height:1.6; color:#333;">{ai_html}</div>'
+            
+            if article_data.get("image_url"):
+                img = f'<img src="{article_data["image_url"]}" style="width:100%; border-radius:10px;"/><br>'
+                return img + wrapper
+            return wrapper
+            
+        except Exception as e:
+            error_msg = str(e)
+            if '429' in error_msg or 'Quota' in error_msg:
+                wait_time = 60  # 遇到限流，强制深呼吸 60 秒
+                logging.warning(f"⚠️ 触发 API 限流 (429)，代码休眠 {wait_time} 秒后重试...")
+                time.sleep(wait_time)
+            else:
+                logging.error(f"❌ AI 处理发生严重错误: {e}")
+                return f"<p style='color:red;'>AI 处理期间发生未知错误: {e}</p>"
+                
+    return "<p style='color:red;'>⚠️ 经过多次等待和重试，依然触发 API 限制，跳过此文章摘要。</p>"
 
 
 # ==========================================
