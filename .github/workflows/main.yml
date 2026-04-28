@@ -23,18 +23,16 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 3. 安装脚本需要的依赖库
+     # 3. 安装脚本需要的依赖库
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 feedparser markdown feedgen google-generativeai
-
-      # 4. 运行你的 Python 脚本（并从保险箱里取出 API Key 喂给它）
+          pip install requests beautifulsoup4 feedparser markdown feedgen openai
+# 4. 运行你的 Python 脚本
       - name: Run Python script
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          # 注意：如果你的文件名里有空格(如 nyrb rss.py)，建议在本地把它重命名为 nyrb_rss.py 再上传，否则这里容易报错。
           python "nyrbrss.py"
 
   # 5. 把 AI 刚写好的 XML 文件存回你的 GitHub 仓库
