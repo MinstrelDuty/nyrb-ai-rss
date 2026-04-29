@@ -79,21 +79,55 @@ def get_latest_article_urls(existing_urls, max_items=10):
 
 # ==========================================
 # ==========================================
+# ==========================================
 # 2. 正文抓取与 AI 处理
 # ==========================================
+def scrape_article(url):
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=15)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        title_tag = soup.find('h1')
+        title = title_tag.text.strip() if title_tag else "精选文章"
+        
+        image_url = ""
+        img_tag = soup.find('meta', property='og:image')
+        if img_tag:
+            image_url = img_tag['content']
+            
+        # 🚀 包含之前为你加上的“诗歌与短文”兼容补丁
+        paragraphs = soup.find_all(['p', 'pre', 'blockquote', 'div'], class_=re.compile(r'poem|stanza|text|body|content', re.I))
+        
+        text_blocks = []
+        for p in paragraphs:
+            text_blocks.append(p.get_text(separator=' ', strip=True))
+            
+        text = "\n".join([t for t in text_blocks if len(t) > 5])
+        
+        # 兜底策略：如果上面抓不到，直接去主体里扒纯文本
+        if len(text) < 100:
+            article_body = soup.find('article') or soup.find('main')
+            if article_body:
+                text = article_body.get_text(separator='\n', strip=True)
+
+        return {"title": title, "url": url, "text": text, "image_url": image_url}
+    except Exception as e:
+        logging.error(f"抓取正文失败: {e}")
+        return None
+
 def process_with_ai(article_data):
     text = article_data.get("text", "")
     
-    # 🚀 修复点 1：门槛降到极低，保护诗歌和短文不被误杀
+    # 🚀 门槛降到极低，保护诗歌和短文不被误杀
     if len(text) < 100:
         return "无中文标题", "未获取破题", "<p>文章内容过短，或者遇到了极其特殊的排版无法抓取。</p>"
 
-    # 🚀 修复点 2：彻底解锁字数封印！保留 80000 字符，生吞万字长文
+    # 🚀 彻底解锁字数封印！保留 80000 字符，生吞万字长文
     text = text[:80000] 
     
-    # 🚀 提示词终极版：融合了诗歌特例与严格的结构化标签
+    # 🚀 提示词终极进化：强制 AI 加上结构标签，方便程序精准切割！
     system_prompt = """你是一位为时间宝贵的精英读者写作的资深主笔。请基于提供的文章撰写精读报告。
-【最高指令】：总字数必须严格控制在 800-1000 字左右！语言必须极度凝练、通俗、犀利。严禁以“想象一下”等呆板词汇开头。
+【最高指令】：总字数严格控制在 800-1000 字左右！严禁以“想象一下”等呆板词汇开头。
 （🔔 特别注意：如果检测到本文是一首诗歌、短篇小说或极短篇随笔，请自动将“独立点评”和“脉络梳理”调整为【文学赏析与意境解读】风格，延伸阅读可推荐相关的诗集或文学评论。）
 
 请务必严格按照以下带有【】的标签格式输出，不要有任何偏差：
@@ -131,10 +165,10 @@ def process_with_ai(article_data):
             ai_text = response.choices[0].message.content
             
             zh_title = "未获取中文标题"
-            hook = "未获取一句话破题"
+            hook = "未获取破题"
             main_content = ai_text
             
-            # 🔪 核心切割逻辑：精准切分出三个部件，发给前端网页
+            # 🔪 核心切割逻辑：把 AI 生成的三大块内容安全拆开
             if "【中文标题】" in ai_text and "【一句话破题】" in ai_text and "【正文】" in ai_text:
                 try:
                     zh_title = ai_text.split("【中文标题】")[1].split("【一句话破题】")[0].strip()
