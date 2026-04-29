@@ -17,7 +17,7 @@ api_key = os.getenv("DEEPSEEK_API_KEY", "").strip(" '\"\n\r\t")
 client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 
 XML_FILE = 'lrb_ai_enhanced.xml'  # 如果是 LRB 脚本，这里改成 'lrb_ai_enhanced.xml'
-MAX_HISTORY = 50
+MAX_HISTORY = 150
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
