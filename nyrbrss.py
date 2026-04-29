@@ -26,7 +26,7 @@ HEADERS = {
 }
 
 # 🚀 历史设定：你想在这个网页上保留多少篇历史文章？
-MAX_HISTORY = 50 
+MAX_HISTORY = 150 
 XML_FILE = 'nyrb_ai_enhanced.xml'
 
 # ==========================================
