@@ -1,47 +1,42 @@
-name: NYRB AI RSS Generator
+name: NYRB and LRB AI RSS Generator
 
 on:
   schedule:
-    - cron: '0 8 * * 1,4'  
-  workflow_dispatch:       
+    # 依然是每周一、周四自动运行
+    - cron: '0 8 * * 1,4' 
+  workflow_dispatch: # 允许你随时手动点击运行
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Install dependencies
-        # 🚀 核心修改：安装了 openai 库
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 feedparser markdown feedgen openai
+          pip install requests beautifulsoup4 feedgen openai markdown
 
-      - name: Run Python script
-        # 🚀 核心修改：把环境变量改成了 DEEPSEEK_API_KEY
+      - name: Run Python scripts
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
+          # 依次运行两个爬虫
           python "nyrbrss.py"
           python "lrb_rss.py"
 
-      - name: Commit and push XML file
+      - name: Commit and push XML files
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add nyrb_ai_enhanced.xml
-          if git diff --staged --quiet; then
-            echo "没有新内容，无需提交。"
-          else
-            git commit -m "Auto-update NYRB RSS (DeepSeek) [skip ci]"
-            git pull --rebase -X theirs origin main
-            git push
-          fi
+          # 📦 1. 把所有生成的 xml 文件打包
+          git add *.xml
+          # 🚀 2. 检查是否有新内容，如果有，就打上标签并狠狠地推送到你的仓库里！
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update AI RSS feeds" && git push)
