@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 api_key = os.getenv("DEEPSEEK_API_KEY", "").strip(" '\"\n\r\t")
 client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 
-XML_FILE = 'nyrb_ai_enhanced.xml'  # 如果是 LRB 脚本，这里改成 'lrb_ai_enhanced.xml'
+XML_FILE = 'lrb_ai_enhanced.xml'  # 如果是 LRB 脚本，这里改成 'lrb_ai_enhanced.xml'
 MAX_HISTORY = 50
 
 HEADERS = {
