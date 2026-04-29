@@ -98,7 +98,7 @@
                         let titleZh = "";
                         let hook = "";
                         
-                        // 兼容旧版本：只有包含了 "|||" 的新文章才会解析
+                        // 1. 常规解析：先看 Python 有没有切好包裹
                         if (desc.includes("|||")) {
                             const parts = desc.split("|||");
                             titleZh = parts[0].trim();
@@ -107,6 +107,36 @@
 
                         let contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
                         let content = contentNode ? contentNode.textContent : "<p>无正文</p>";
+
+                        // ==========================================
+                        // 🚀 2. 前端终极抢救：如果 Python 切割失败，网页亲自操刀！
+                        // ==========================================
+                        if (!titleZh || titleZh.includes("未获取") || titleZh.includes("解析失败")) {
+                            
+                            // 抢救【中文标题】
+                            const titleMatch = content.match(/【中文标题】([\s\S]*?)【一句话破题】/);
+                            if (titleMatch) {
+                                // 提取并剥离可能附带的 HTML 标签 (<p> 等)
+                                titleZh = titleMatch[1].replace(/<[^>]+>/g, '').trim(); 
+                                // 阅后即焚：把标题从正文中切除
+                                content = content.replace(/【中文标题】[\s\S]*?【一句话破题】/, '【一句话破题】');
+                            }
+
+                            // 抢救【一句话破题】
+                            // 一直抓到【正文】、或者 Markdown的 ###、或者 HTML的 <h> 标签
+                            const hookMatch = content.match(/【一句话破题】([\s\S]*?)(?=【正文】|###|<h[1-6]>|$)/);
+                            if (hookMatch) {
+                                hook = hookMatch[1].replace(/<[^>]+>/g, '').trim();
+                                // 阅后即焚：把破题从正文中彻底切除
+                                content = content.replace(/【一句话破题】[\s\S]*?(?=【正文】|###|<h[1-6]>|$)/, '');
+                            }
+                            
+                            // 打扫战场：清理掉可能残留的“孤魂野鬼”标签
+                            content = content.replace(/<p>\s*<\/p>/g, ''); // 清理空段落
+                            content = content.replace(/【中文标题】[\s\S]*?<\/p>/g, ''); 
+                            content = content.replace(/【正文】/g, '');
+                        }
+                        // ==========================================
 
                         const shortDate = new Date(pubDate).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
 
