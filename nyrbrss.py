@@ -85,53 +85,45 @@ def get_latest_article_urls(existing_urls, max_items=10):
     return urls
 
 # ==========================================
+# ==========================================
 # 2. 正文抓取与 AI 处理
 # ==========================================
-def scrape_article(url):
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=15)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        title_tag = soup.find('h1')
-        title = title_tag.text.strip() if title_tag else "NYRB 精选文章"
-        
-        image_url = ""
-        img_tag = soup.find('meta', property='og:image')
-        if img_tag:
-            image_url = img_tag['content']
-            
-        paragraphs = soup.find_all('p')
-        text = "\n".join([p.text.strip() for p in paragraphs if p.text.strip()])
-        return {"title": title, "url": url, "text": text, "image_url": image_url}
-    except Exception as e:
-        return None
-
 def process_with_ai(article_data):
     text = article_data.get("text", "")
-    if len(text) < 500:
-        return "<p>文章内容过短，可能遭遇了防抓取拦截。</p>"
-
-    text = text[:15000] 
     
+    # 🚀 修复点 1：门槛降到极低，保护诗歌和短文不被误杀
+    if len(text) < 100:
+        return "无中文标题", "未获取破题", "<p>文章内容过短，或者遇到了极其特殊的排版无法抓取。</p>"
 
-# 🚀 提示词 5.0：独立批判与全景式阅读矩阵
-    system_prompt = """你是一位为精英读者写作的资深思想评论员。请基于提供的文章正文，撰写一份深度精读报告。
-输出要求（Markdown格式，严禁“好的”等废话，严禁以“想象一下”或“设想”开头）：
+    # 🚀 修复点 2：彻底解锁字数封印！保留 80000 字符，生吞万字长文
+    text = text[:80000] 
+    
+    # 🚀 提示词终极版：融合了诗歌特例与严格的结构化标签
+    system_prompt = """你是一位为时间宝贵的精英读者写作的资深主笔。请基于提供的文章撰写精读报告。
+【最高指令】：总字数必须严格控制在 800-1000 字左右！语言必须极度凝练、通俗、犀利。严禁以“想象一下”等呆板词汇开头。
+（🔔 特别注意：如果检测到本文是一首诗歌、短篇小说或极短篇随笔，请自动将“独立点评”和“脉络梳理”调整为【文学赏析与意境解读】风格，延伸阅读可推荐相关的诗集或文学评论。）
 
-1. 📰 **内容精要（准确且富有细节）**：
-   - 拒绝笼统概括，必须包含文章中的 2-3 个核心细节（如具体的历史事件、核心人物名、或作者提出的关键概念/引语）。
-   - 语感要专业且流畅，像高质量的深度报道。
+请务必严格按照以下带有【】的标签格式输出，不要有任何偏差：
 
-2. 🧠 **批判与脉络（深度透视）**：
-   - **思想点评**：一针见血地评价本文内容的质量与立意。它的视角有何独特之处？论证是否扎实？是否存在刻意回避的盲区、偏见或逻辑局限？
-   - **学术对话**：指出这篇文章在思想史或特定研究领域的“坐标”。它在挑战哪种传统共识？作者在与哪位学者、哪种思潮进行显性辩论或隐秘呼应？
+【中文标题】
+直接写出英文标题的精准且具有吸引力的中文翻译
 
-3. 📚 **延伸阅读（全景式书单）**：
-   - 推荐 4-5 本真实存在的优质著作，为读者构建一个立体的知识矩阵。请按以下三个维度进行分类推荐：
-     * 🎯 **核心辐射（1-2本）**：与本文讨论的具体历史背景、核心人物或直接主题最紧密相关的经典著作。
-     * 🤝 **同向深化（1-2本）**：与本文作者处于同一研究脉络、理论框架，或能进一步补充、支撑本文观点的著作。
-     * ⚔️ **反向争锋（1本）**：提出截然相反观点、采用完全不同视角，或能对本文及其代表的思潮进行有力反驳的著作。
-   - 要求：每本书必须给出书名、作者，并用一两句话精准点明它在这个阅读矩阵中的独特价值。"""
+【一句话破题】
+用一句极具张力的话（不超过40字），直接点破这篇文章的核心冲突或洞见
+
+【正文】
+（从这里开始使用Markdown排版）
+### 📰 核心脉络
+（300-400字）语言要极具可读性，像讲故事一样梳理文章逻辑，必须精准嵌入2-3个核心细节（如关键史实、概念或人物）。
+
+### 🧠 独立点评
+（约200字）必须进行学术史层面的考察。指出文章在思想史或学术界的坐标，它回应了什么争论？延续或挑战了哪种范式？
+
+### 📚 延伸矩阵
+（每本需用2-3句话详实介绍其学术价值）
+- **核心相关（1本）**：与文章讨论的具体内容直接相关。
+- **相同脉络（1本）**：与作者理论底色相同或同属一个思想谱系。
+- **不同观点（1-2本）**：提供截然不同的解释框架或反面视角的著作。"""
 
     for attempt in range(3):
         try:
@@ -143,35 +135,47 @@ def process_with_ai(article_data):
                 ],
                 max_tokens=4000, temperature=0.7
             )
-            ai_markdown = response.choices[0].message.content
-            ai_html = markdown.markdown(ai_markdown, extensions=['extra'])
+            ai_text = response.choices[0].message.content
             
+            zh_title = "未获取中文标题"
+            hook = "未获取一句话破题"
+            main_content = ai_text
+            
+            # 🔪 核心切割逻辑：精准切分出三个部件，发给前端网页
+            if "【中文标题】" in ai_text and "【一句话破题】" in ai_text and "【正文】" in ai_text:
+                try:
+                    zh_title = ai_text.split("【中文标题】")[1].split("【一句话破题】")[0].strip()
+                    hook = ai_text.split("【一句话破题】")[1].split("【正文】")[0].strip()
+                    main_content = ai_text.split("【正文】")[1].strip()
+                except Exception:
+                    pass
+            
+            ai_html = markdown.markdown(main_content, extensions=['extra'])
             wrapper = f'<div style="font-size:16px; line-height:1.6; color:#333;">{ai_html}</div>'
+            
             if article_data.get("image_url"):
                 img = f'<img src="{article_data["image_url"]}" style="width:100%; border-radius:10px;"/><br>'
-                return img + wrapper
-            return wrapper
+                wrapper = img + wrapper
+                
+            return zh_title, hook, wrapper
+            
         except Exception as e:
             if '429' in str(e):
                 time.sleep(30)
             else:
-                return f"<p style='color:red;'>AI 错误: {e}</p>"
-    return "<p style='color:red;'>触发限制，跳过此文章摘要。</p>"
-
+                return "API错误", "API错误", f"<p style='color:red;'>AI 错误: {e}</p>"
+    return "触发限制", "触发限制", "<p style='color:red;'>跳过此文章摘要。</p>"
 # ==========================================
 # 3. 主程序装配
 # ==========================================
 def main():
     if len(api_key) == 0: return
     
-    # 1. 唤醒记忆
     existing_urls, existing_items_xml = get_existing_items()
-    
-    # 2. 寻找新猎物
     urls = get_latest_article_urls(existing_urls, max_items=10) 
     
     if not urls: 
-        logging.info("🎉 当前期所有文章已全部处理完毕，正在等待 NYRB 发布新一期...")
+        logging.info("🎉 当前期所有文章已全部处理完毕，正在等待发布新一期...")
         return
 
     new_items_xml = []
@@ -179,29 +183,31 @@ def main():
         logging.info(f"✨ 正在处理本期新文章: {url}")
         article_data = scrape_article(url)
         if article_data and article_data["text"]:
-            ai_summary_html = process_with_ai(article_data)
+            # 📦 接收切分好的三个零件
+            zh_title, hook, ai_summary_html = process_with_ai(article_data)
             pub_date = formatdate(localtime=False)
+            
+            # 🚀 我们把提取出来的 中文标题 和 破题，用 "|||" 拼起来，悄悄塞进 description 标签里
             item_xml = f"""
     <item>
         <title><![CDATA[{article_data["title"]}]]></title>
         <link>{url}</link>
         <guid isPermaLink="false">{url}</guid>
         <pubDate>{pub_date}</pubDate>
-        <description><![CDATA[纽约书评深度精读已生成！]]></description>
+        <description><![CDATA[{zh_title}|||{hook}]]></description>
         <content:encoded><![CDATA[{ai_summary_html}]]></content:encoded>
     </item>"""
             new_items_xml.append(item_xml)
             time.sleep(20)
 
-    # 组装 XML 保存
     all_items = (new_items_xml + existing_items_xml)[:MAX_HISTORY]
     
     rss_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
 <channel>
-    <title><![CDATA[纽约书评 (NYRB) - AI 深度精读版]]></title>
-    <link>https://www.nybooks.com/</link>
-    <description><![CDATA[自动排队处理最新一期内容，拒绝废话，生动解析]]></description>
+    <title><![CDATA[AI 深度精读版]]></title>
+    <link>https://github.com/</link>
+    <description><![CDATA[高端学术精读杂志]]></description>
     <language>zh-CN</language>
     <pubDate>{formatdate(localtime=False)}</pubDate>
 """
@@ -211,7 +217,7 @@ def main():
     with open(XML_FILE, 'w', encoding='utf-8') as f:
         f.write(rss_xml)
         
-    logging.info(f"✅ NYRB 更新完毕！本次完美消化了 {len(new_items_xml)} 篇文章。")
+    logging.info(f"✅ 更新完毕！本次完美消化了 {len(new_items_xml)} 篇文章。")
 
 if __name__ == "__main__":
     main()
