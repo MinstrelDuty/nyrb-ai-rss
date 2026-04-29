@@ -1,35 +1,34 @@
 import os
+import re
 import time
 import logging
-import markdown
 import requests
-import re
+import markdown
 from bs4 import BeautifulSoup
 from email.utils import formatdate
 from openai import OpenAI
 
 # ==========================================
-# 0. 初始化与最强伪装
+# 0. 基础配置
 # ==========================================
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 api_key = os.getenv("DEEPSEEK_API_KEY", "").strip(" '\"\n\r\t")
 client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 
+XML_FILE = 'nyrb_ai_enhanced.xml'  # 如果是 LRB 脚本，这里改成 'lrb_ai_enhanced.xml'
+MAX_HISTORY = 50
+
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-    "Referer": "https://www.google.com/",
-    "X-Forwarded-For": "66.249.66.1",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Referer": "https://www.google.com/"
 }
 
-XML_FILE = 'lrb_ai_enhanced.xml'
-# 🚀 必须调高！保证它能记住过去几个月的文章，防止重复抓取
-MAX_HISTORY = 150 
 
 # ==========================================
-# 1. 记忆读取与智能链接嗅探
+# 1. 历史数据与目录抓取 (保留你原来的链接抓取逻辑)
 # ==========================================
+
 def get_existing_items():
     existing_urls = set()
     existing_items_xml = []
@@ -47,24 +46,25 @@ def get_existing_items():
             pass
     return existing_urls, existing_items_xml
 
-def get_latest_article_urls(existing_urls, max_items=10):
+
+def get_latest_article_urls(existing_urls, max_items=50):
     urls = []
     try:
         # 🎯 直接访问 LRB 的“当前期”总目录
-        target_url = "https://www.lrb.co.uk/the-paper" 
+        target_url = "https://www.lrb.co.uk/the-paper"
         logging.info(f"正在扫描最新一期目录: {target_url}")
-        
+
         response = requests.get(target_url, headers=HEADERS, timeout=15)
         soup = BeautifulSoup(response.text, 'html.parser')
-        
+
         for a_tag in soup.find_all('a', href=True):
             href = a_tag['href']
-            
+
             # 🚀 终极正则匹配：精准锁定 v48/n07/作者/标题 这种格式的文章
             # 这就意味着，不管是 v48 还是 v49，n07 还是 n08，只要是文章链接它就能认出来！
             if re.match(r'^/the-paper/v\d+/n\d+/[^/]+/.+', href):
                 full_url = f"https://www.lrb.co.uk{href}"
-                
+
                 # 🧠 核心排队逻辑：只有当这篇文章既不在本次待抓列表，也不在历史记忆里时，才加入列表！
                 if full_url not in urls and full_url not in existing_urls:
                     urls.append(full_url)
@@ -73,38 +73,38 @@ def get_latest_article_urls(existing_urls, max_items=10):
                         break
     except Exception as e:
         logging.error(f"抓取链接失败: {e}")
-    
+
     logging.info(f"队列计算完毕，本次共有 {len(urls)} 篇新文章需要处理。")
     return urls
+# ==========================================
+# 2. 核心引擎：正文抓取与 AI 深度处理
+# ==========================================
 
-# ==========================================
-# ==========================================
-# ==========================================
-# 2. 正文抓取与 AI 处理
-# ==========================================
 def scrape_article(url):
+    """广角抓取正文，完美兼容万字长文与短篇诗歌"""
     try:
         response = requests.get(url, headers=HEADERS, timeout=15)
         soup = BeautifulSoup(response.text, 'html.parser')
-        
+
         title_tag = soup.find('h1')
         title = title_tag.text.strip() if title_tag else "精选文章"
-        
+
         image_url = ""
         img_tag = soup.find('meta', property='og:image')
         if img_tag:
             image_url = img_tag['content']
-            
-        # 🚀 包含之前为你加上的“诗歌与短文”兼容补丁
-        paragraphs = soup.find_all(['p', 'pre', 'blockquote', 'div'], class_=re.compile(r'poem|stanza|text|body|content', re.I))
-        
+
+        # 兼容诗歌和特殊排版
+        paragraphs = soup.find_all(['p', 'pre', 'blockquote', 'div'],
+                                   class_=re.compile(r'poem|stanza|text|body|content', re.I))
+
         text_blocks = []
         for p in paragraphs:
             text_blocks.append(p.get_text(separator=' ', strip=True))
-            
+
         text = "\n".join([t for t in text_blocks if len(t) > 5])
-        
-        # 兜底策略：如果上面抓不到，直接去主体里扒纯文本
+
+        # 兜底策略
         if len(text) < 100:
             article_body = soup.find('article') or soup.find('main')
             if article_body:
@@ -112,21 +112,22 @@ def scrape_article(url):
 
         return {"title": title, "url": url, "text": text, "image_url": image_url}
     except Exception as e:
-        logging.error(f"抓取正文失败: {e}")
+        logging.error(f"抓取正文失败: {url} - {e}")
         return None
 
-def process_with_ai(article_data):
-    text = article_data.get("text", "")
-    
-    # 🚀 门槛降到极低，保护诗歌和短文不被误杀
-    if len(text) < 100:
-        return "无中文标题", "未获取破题", "<p>文章内容过短，或者遇到了极其特殊的排版无法抓取。</p>"
 
-    # 🚀 彻底解锁字数封印！保留 80000 字符，生吞万字长文
-    text = text[:80000] 
-    
-    # 🚀 提示词终极进化：强制 AI 加上结构标签，方便程序精准切割！
-        system_prompt = """你是一位为时间宝贵的精英读者写作的资深主笔。请基于提供的文章撰写精读报告。
+def process_with_ai(article_data):
+    """DeepSeek 深度精读与结构化数据提取"""
+    text = article_data.get("text", "")
+
+    # 门槛极低，保护诗歌不被误杀
+    if len(text) < 100:
+        return "无中文标题", "✍️ 未获取作者与对象", "未获取破题", "<p>文章内容过短或遇到特殊排版无法提取。</p>"
+
+    # 解锁 8 万字符，生吞整篇巨著
+    text = text[:80000]
+
+    system_prompt = """你是一位为时间宝贵的精英读者写作的资深主笔。请基于提供的文章撰写精读报告。
 【最高指令】：总字数严格控制在 800-1000 字左右！严禁以“想象一下”等呆板词汇开头。
 （🔔 特别注意：如果检测到本文是一首诗歌、短篇小说或极短篇随笔，请自动将“独立点评”和“脉络梳理”调整为【文学赏析与意境解读】风格，延伸阅读可推荐相关的诗集或文学评论。）
 
@@ -150,8 +151,8 @@ def process_with_ai(article_data):
 （约200字）必须进行学术史层面的考察。指出文章在思想史或学术界的坐标，它回应了什么争论？延续或挑战了哪种范式？
 
 ### 📚 延伸矩阵
-（（🚨 绝对铁律：推荐的所有书籍必须是【现实中真实存在的出版物】，严禁AI伪造书名或作者！宁可推荐稍微宽泛但真实的经典著作，也绝不能编造！每本书需用1-2句话详实介绍其学术价值））
-- **核心相关（1本）**：与文章讨论的具体内容直接相关。
+（🚨 绝对铁律：推荐的所有书籍必须是【现实中真实存在的出版物】，严禁AI伪造书名或作者！宁可推荐稍微宽泛但真实的经典著作，也绝不能编造！每本书需用1-2句话详实介绍其学术价值）
+- **核心相关（1本）**：与文章探讨的具体对象直接相关。
 - **相同脉络（1本）**：与作者理论底色相同或同属一个思想谱系。
 - **不同观点（1-2本）**：提供截然不同的解释框架或反面视角的著作。"""
 
@@ -166,73 +167,95 @@ def process_with_ai(article_data):
                 max_tokens=4000, temperature=0.7
             )
             ai_text = response.choices[0].message.content
-            
+
+            # ==========================================
+            # 🔪 终极防御型切割逻辑（含作者与对象）
+            # ==========================================
             zh_title = "未获取中文标题"
+            meta_info = "✍️ 未获取作者与对象"
             hook = "未获取破题"
-            main_content = ai_text
-            
-            # 🔪 核心切割逻辑：把 AI 生成的三大块内容安全拆开
-            if "【中文标题】" in ai_text and "【一句话破题】" in ai_text and "【正文】" in ai_text:
-                try:
-                    zh_title = ai_text.split("【中文标题】")[1].split("【一句话破题】")[0].strip()
-                    hook = ai_text.split("【一句话破题】")[1].split("【正文】")[0].strip()
-                    main_content = ai_text.split("【正文】")[1].strip()
-                except Exception:
-                    pass
-            
+            main_content = ai_text  # 默认先给全文
+
+            title_match = re.search(r'【中文标题】(.*?)(?=【作者与对象】|【一句话破题】)', ai_text, re.S)
+            if title_match:
+                zh_title = title_match.group(1).strip()
+                main_content = main_content.replace(title_match.group(0), "")
+
+            meta_match = re.search(r'【作者与对象】(.*?)(?=【一句话破题】)', ai_text, re.S)
+            if meta_match:
+                meta_info = meta_match.group(1).strip()
+                main_content = main_content.replace(meta_match.group(0), "")
+
+            hook_match = re.search(r'【一句话破题】(.*?)(?=【正文】|###|$)', ai_text, re.S)
+            if hook_match:
+                hook = hook_match.group(1).strip()
+                main_content = main_content.replace(hook_match.group(0), "")
+
+            main_content = main_content.replace("【正文】", "").strip()
+            # ==========================================
+
             ai_html = markdown.markdown(main_content, extensions=['extra'])
             wrapper = f'<div style="font-size:16px; line-height:1.6; color:#333;">{ai_html}</div>'
-            
+
             if article_data.get("image_url"):
                 img = f'<img src="{article_data["image_url"]}" style="width:100%; border-radius:10px;"/><br>'
                 wrapper = img + wrapper
-                
-            return zh_title, hook, wrapper
-            
+
+            return zh_title, meta_info, hook, wrapper
+
         except Exception as e:
             if '429' in str(e):
+                logging.warning("API 频率限制，沉睡 30 秒...")
                 time.sleep(30)
             else:
-                return "API错误", "API错误", f"<p style='color:red;'>AI 错误: {e}</p>"
-    return "触发限制", "触发限制", "<p style='color:red;'>跳过此文章摘要。</p>"
+                logging.error(f"AI 处理错误: {e}")
+                return "API错误", "API错误", "API错误", f"<p style='color:red;'>AI 错误: {e}</p>"
+
+    return "触发限制", "触发限制", "触发限制", "<p style='color:red;'>跳过此文章摘要。</p>"
+
 
 # ==========================================
-# 3. 主程序装配
+# 3. 主程序装配与打包发布
 # ==========================================
+
 def main():
-    if len(api_key) == 0: return
-    
+    if not api_key:
+        logging.error("未找到 DEEPSEEK_API_KEY 环境变量！")
+        return
+
     existing_urls, existing_items_xml = get_existing_items()
-    urls = get_latest_article_urls(existing_urls, max_items=10) 
-    
-    if not urls: 
-        logging.info("🎉 当前期所有文章已全部处理完毕，正在等待发布新一期...")
+
+    # max_items=50，确保能一次性吃掉整期杂志
+    urls = get_latest_article_urls(existing_urls, max_items=50)
+
+    if not urls:
+        logging.info("🎉 当前期所有文章已处理完毕或无更新，正在等待新刊发布... 本次未消耗 AI Token。")
         return
 
     new_items_xml = []
     for url in urls:
-        logging.info(f"✨ 正在处理本期新文章: {url}")
+        logging.info(f"✨ 正在处理新文章: {url}")
         article_data = scrape_article(url)
+
         if article_data and article_data["text"]:
-            # 📦 接收切分好的三个零件
-            zh_title, hook, ai_summary_html = process_with_ai(article_data)
+            zh_title, meta_info, hook, ai_summary_html = process_with_ai(article_data)
             pub_date = formatdate(localtime=False)
-            
-            # 🚀 我们把提取出来的 中文标题 和 破题，用 "|||" 拼起来，悄悄塞进 description 标签里
+
+            # 将四个核心部件拼装成 XML Item
             item_xml = f"""
     <item>
         <title><![CDATA[{article_data["title"]}]]></title>
         <link>{url}</link>
         <guid isPermaLink="false">{url}</guid>
         <pubDate>{pub_date}</pubDate>
-        <description><![CDATA[{zh_title}|||{hook}]]></description>
+        <description><![CDATA[{zh_title}|||{meta_info}|||{hook}]]></description>
         <content:encoded><![CDATA[{ai_summary_html}]]></content:encoded>
     </item>"""
             new_items_xml.append(item_xml)
-            time.sleep(20)
+            time.sleep(15)  # 尊贵的喘息时间
 
     all_items = (new_items_xml + existing_items_xml)[:MAX_HISTORY]
-    
+
     rss_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
 <channel>
@@ -242,13 +265,15 @@ def main():
     <language>zh-CN</language>
     <pubDate>{formatdate(localtime=False)}</pubDate>
 """
-    for item in all_items: rss_xml += item
+    for item in all_items:
+        rss_xml += item
     rss_xml += "\n</channel>\n</rss>"
 
     with open(XML_FILE, 'w', encoding='utf-8') as f:
         f.write(rss_xml)
-        
+
     logging.info(f"✅ 更新完毕！本次完美消化了 {len(new_items_xml)} 篇文章。")
+
 
 if __name__ == "__main__":
     main()
