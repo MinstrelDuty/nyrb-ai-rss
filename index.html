@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta name="referrer" content="no-referrer">
+    
     <title>AI 深度精读杂志架</title>
     <style>
         body { background-color: #f0f2f5; color: #333; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.8; margin: 0; padding: 20px; }
@@ -25,7 +28,8 @@
 
         .article-date { font-size: 13px; color: #999; margin-bottom: 25px; }
         .article-content { font-size: 17px; color: #444; }
-        .article-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 20px 0; display: block; }
+        /* 让图片在手机和平板上完美自适应，并切掉多余白边 */
+        .article-content img { max-width: 100%; height: auto; border-radius: 10px; margin: 20px auto; display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.1); object-fit: cover; }
         .article-content h2, .article-content h3 { color: #222; margin-top: 35px; margin-bottom: 15px; }
         .loading { text-align: center; font-size: 18px; color: #888; padding: 50px; }
     </style>
