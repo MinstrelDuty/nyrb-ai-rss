@@ -10,7 +10,6 @@
         .header { text-align: center; margin-bottom: 30px; }
         .header h1 { font-size: 32px; color: #111; margin-bottom: 10px; font-weight: 800; }
         
-        /* 🚀 新增：导航栏样式 */
         .nav-tabs { display: flex; justify-content: center; gap: 15px; margin-bottom: 40px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
         .nav-btn { background: #f8f9fa; border: 1px solid #ddd; padding: 10px 25px; border-radius: 30px; font-size: 16px; color: #555; cursor: pointer; transition: all 0.3s; }
         .nav-btn:hover { background: #e9ecef; }
@@ -18,7 +17,12 @@
 
         .article { margin-bottom: 60px; padding-bottom: 40px; border-bottom: 1px dashed #e0e0e0; }
         .article:last-child { border-bottom: none; }
-        .article-title { font-size: 26px; color: #1a1a1a; margin-bottom: 15px; font-weight: bold; line-height: 1.4; }
+        
+        /* 🚀 新增：标题超链接的精美样式 */
+        .article-title { font-size: 26px; margin-bottom: 15px; font-weight: bold; line-height: 1.4; }
+        .article-title a { color: #1a1a1a; text-decoration: none; transition: color 0.2s ease-in-out; }
+        .article-title a:hover { color: #0366d6; text-decoration: underline; } /* 鼠标悬停变蓝加下划线 */
+
         .article-date { font-size: 13px; color: #999; margin-bottom: 25px; }
         .article-content { font-size: 17px; color: #444; }
         .article-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 20px 0; display: block; }
@@ -41,9 +45,7 @@
     </div>
 
     <script>
-        // 🚀 新增：动态加载 XML 的函数
         function loadFeed(xmlFile, btnElement) {
-            // 切换按钮高亮状态
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
             if(btnElement) btnElement.classList.add('active');
 
@@ -64,12 +66,19 @@
                     items.forEach(item => {
                         const title = item.querySelector("title")?.textContent || "无标题";
                         const pubDate = item.querySelector("pubDate")?.textContent || "未知时间";
+                        
+                        // 🚀 新增：提取文章的原始链接
+                        const link = item.querySelector("link")?.textContent || "#";
+
                         let contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
                         let content = contentNode ? contentNode.textContent : (item.querySelector("description")?.textContent || "无正文");
 
+                        // 🚀 组装带有 target="_blank" 的超链接，点击会在新标签页打开原网页
                         html += `
                             <div class="article">
-                                <div class="article-title">${title}</div>
+                                <div class="article-title">
+                                    <a href="${link}" target="_blank" title="点击前往原网站阅读">${title}</a>
+                                </div>
                                 <div class="article-date">更新时间: ${pubDate}</div>
                                 <div class="article-content">${content}</div>
                             </div>
@@ -82,7 +91,6 @@
                 });
         }
 
-        // 页面打开时，默认加载纽约书评
         window.onload = () => loadFeed('nyrb_ai_enhanced.xml', document.querySelector('.nav-btn'));
     </script>
 </body>
