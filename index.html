@@ -16,48 +16,52 @@
         .nav-btn:hover { background: #e4e6eb; }
         .nav-btn.active { background: #111; color: #fff; }
 
+        /* 🚀 新增：按期归档的标题头样式 */
+        .issue-group { margin-bottom: 50px; }
+        .issue-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; margin-top: 30px; }
+        .issue-title { font-size: 22px; font-weight: bold; color: #222; margin: 0; }
+        .download-btn { background: #0366d6; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 14px; cursor: pointer; transition: background 0.2s; font-weight: bold; }
+        .download-btn:hover { background: #0056b3; }
+
         .article-card { background: #fff; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden; transition: box-shadow 0.3s; }
         .article-card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
         
-        /* 🚀 全新卡片头部排版 */
         .article-header { padding: 25px; cursor: pointer; display: flex; justify-content: space-between; align-items: flex-start; background: #fff; transition: background 0.2s; }
         .article-header:hover { background: #fdfdfd; }
         .article-title-wrap { flex: 1; padding-right: 25px; }
         
-        .article-title-en { font-size: 17px; color: #777; margin: 0 0 5px 0; font-family: Georgia, serif; line-height: 1.4; font-style: italic; }
-        .article-title-zh { font-size: 24px; color: #111; margin: 0 0 15px 0; font-weight: 800; line-height: 1.3; }
-        
-        /* 🎯 一句话破题的专属醒目样式 */
-        .article-hook { font-size: 16px; color: #d32f2f; background: #fff5f5; padding: 12px 18px; border-radius: 8px; margin-bottom: 15px; line-height: 1.6; border-left: 4px solid #d32f2f; font-weight: 500; }
+        .article-title-en { font-size: 16px; color: #777; margin: 0 0 5px 0; font-family: Georgia, serif; line-height: 1.4; font-style: italic; }
+        .article-title-zh { font-size: 22px; color: #111; margin: 0 0 12px 0; font-weight: 800; line-height: 1.3; }
+        .article-meta-author { font-size: 14px; color: #555; background: #f0f2f5; padding: 6px 12px; border-radius: 6px; margin-bottom: 15px; display: inline-block; font-weight: 500; }
+        .article-hook { font-size: 15px; color: #d32f2f; background: #fff5f5; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #d32f2f; margin-bottom: 15px; line-height: 1.6; font-weight: 500; }
         
         .article-meta { font-size: 13px; color: #999; display: flex; gap: 15px; }
         .article-meta a { color: #0366d6; text-decoration: none; }
-        .article-meta a:hover { text-decoration: underline; }
         
         .toggle-icon { font-size: 20px; color: #bbb; transition: transform 0.3s ease; margin-top: 5px; }
         .article-card.open .toggle-icon { transform: rotate(180deg); }
 
         .article-body { padding: 0 25px 30px 25px; display: none; border-top: 1px dashed #eee; margin-top: 10px; padding-top: 25px; }
         .article-content { font-size: 16px; color: #333; }
-        .article-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 15px auto; display: block; object-fit: cover; }
-        .article-content h3 { color: #111; margin-top: 25px; margin-bottom: 10px; font-size: 19px; display: flex; align-items: center; }
         .loading { text-align: center; font-size: 16px; color: #888; padding: 50px; background: #fff; border-radius: 12px; margin-top: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>📚 AI 深度精读杂志架</h1>
+            <h1>📚 AI 深度精读智库</h1>
             <div class="nav-tabs">
                 <button class="nav-btn active" onclick="loadFeed('nyrb_ai_enhanced.xml', this)">纽约书评</button>
                 <button class="nav-btn" onclick="loadFeed('lrb_ai_enhanced.xml', this)">伦敦书评</button>
             </div>
         </div>
-
         <div id="content" class="loading">正在解码顶尖思想... ⏳</div>
     </div>
 
     <script>
+        // 全局变量，用于存储按期分类的数据，方便下载时调用
+        let issueDataStore = {};
+
         function toggleCard(headerElement) {
             const card = headerElement.parentElement;
             const body = card.querySelector('.article-body');
@@ -70,12 +74,52 @@
             }
         }
 
+        // 🚀 新增核心功能：将指定期数的文章打包成 Markdown 下载
+        function downloadIssue(dateKey) {
+            const articles = issueDataStore[dateKey];
+            if (!articles) return;
+
+            let mdContent = `# 📚 深度精读周刊 - ${dateKey}\n\n`;
+            mdContent += `> 自动归档生成于 AI 杂志架\n\n---\n\n`;
+
+            articles.forEach((art, index) => {
+                mdContent += `## ${index + 1}. ${art.titleZh}\n`;
+                mdContent += `*${art.titleEn}*\n\n`;
+                mdContent += `**${art.metaInfo}**\n\n`;
+                mdContent += `> 🎯 **核心洞见**：${art.hook}\n\n`;
+                
+                // 将 HTML 正文转换回基础的 Markdown 文本 (简单处理)
+                let textBody = art.content.replace(/<h3.*?>/g, '\n### ').replace(/<\/h3>/g, '\n');
+                textBody = textBody.replace(/<p.*?>/g, '').replace(/<\/p>/g, '\n\n');
+                textBody = textBody.replace(/<br.*?>/g, '\n');
+                textBody = textBody.replace(/<li.*?>/g, '- ').replace(/<\/li>/g, '\n');
+                textBody = textBody.replace(/<[^>]+>/g, ''); // 移除多余的HTML
+                
+                mdContent += `${textBody.trim()}\n\n`;
+                mdContent += `🔗 [阅读英文原刊](${art.link})\n\n---\n\n`;
+            });
+
+            // 生成文件并触发浏览器下载
+            const blob = new Blob([mdContent], { type: "text/markdown;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `精读智库_${dateKey.replace(/\s+/g, '')}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
         function loadFeed(xmlFile, btnElement) {
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
             if(btnElement) btnElement.classList.add('active');
 
             const contentDiv = document.getElementById("content");
             contentDiv.innerHTML = "<div class='loading'>正在拉取数据中... 🚀</div>";
+            
+            // 每次切换时清空数据存储
+            issueDataStore = {};
 
             fetch(xmlFile + '?t=' + new Date().getTime())
                 .then(response => response.text())
@@ -87,81 +131,66 @@
                         return;
                     }
                     
-                    let html = "";
+                    // 1. 数据解析与按期分组 (Grouping)
                     items.forEach(item => {
                         const titleEn = item.querySelector("title")?.textContent || "Untitled";
                         const pubDate = item.querySelector("pubDate")?.textContent || "未知时间";
                         const link = item.querySelector("link")?.textContent || "#";
-                        
-                        // 📦 解析包裹：把 Python 藏在 description 里的中英双语和破题拆出来
                         const desc = item.querySelector("description")?.textContent || "";
-                        let titleZh = "";
-                        let hook = "";
                         
-                        // 1. 常规解析：先看 Python 有没有切好包裹
+                        // 生成这一期的标识（由于我们是一次抓整期，相同的日期就是一期）
+                        const dateKey = new Date(pubDate).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) + " 智库更新";
+
+                        let titleZh = "解析失败", metaInfo = "", hook = "";
                         if (desc.includes("|||")) {
                             const parts = desc.split("|||");
-                            titleZh = parts[0].trim();
-                            hook = parts[1].trim();
+                            titleZh = parts[0]?.trim() || "";
+                            metaInfo = parts[1]?.trim() || "";
+                            hook = parts[2]?.trim() || "";
                         }
 
                         let contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
                         let content = contentNode ? contentNode.textContent : "<p>无正文</p>";
 
-                        // ==========================================
-                        // 🚀 2. 前端终极抢救：如果 Python 切割失败，网页亲自操刀！
-                        // ==========================================
-                        if (!titleZh || titleZh.includes("未获取") || titleZh.includes("解析失败")) {
-                            
-                            // 抢救【中文标题】
-                            const titleMatch = content.match(/【中文标题】([\s\S]*?)【一句话破题】/);
-                            if (titleMatch) {
-                                // 提取并剥离可能附带的 HTML 标签 (<p> 等)
-                                titleZh = titleMatch[1].replace(/<[^>]+>/g, '').trim(); 
-                                // 阅后即焚：把标题从正文中切除
-                                content = content.replace(/【中文标题】[\s\S]*?【一句话破题】/, '【一句话破题】');
-                            }
-
-                            // 抢救【一句话破题】
-                            // 一直抓到【正文】、或者 Markdown的 ###、或者 HTML的 <h> 标签
-                            const hookMatch = content.match(/【一句话破题】([\s\S]*?)(?=【正文】|###|<h[1-6]>|$)/);
-                            if (hookMatch) {
-                                hook = hookMatch[1].replace(/<[^>]+>/g, '').trim();
-                                // 阅后即焚：把破题从正文中彻底切除
-                                content = content.replace(/【一句话破题】[\s\S]*?(?=【正文】|###|<h[1-6]>|$)/, '');
-                            }
-                            
-                            // 打扫战场：清理掉可能残留的“孤魂野鬼”标签
-                            content = content.replace(/<p>\s*<\/p>/g, ''); // 清理空段落
-                            content = content.replace(/【中文标题】[\s\S]*?<\/p>/g, ''); 
-                            content = content.replace(/【正文】/g, '');
-                        }
-                        // ==========================================
-
-                        const shortDate = new Date(pubDate).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
-
-                        // 🚀 UI 渲染引擎：将信息完美归位
-                        html += `
-                            <div class="article-card">
-                                <div class="article-header" onclick="toggleCard(this)">
-                                    <div class="article-title-wrap">
-                                        <h3 class="article-title-en">${titleEn}</h3>
-                                        ${titleZh ? `<h2 class="article-title-zh">${titleZh}</h2>` : ''}
-                                        ${hook ? `<div class="article-hook">🎯 ${hook}</div>` : ''}
-                                        
-                                        <div class="article-meta">
-                                            <span>📅 ${shortDate}</span>
-                                            <span>🔗 <a href="${link}" target="_blank" onclick="event.stopPropagation();">阅读原刊</a></span>
-                                        </div>
-                                    </div>
-                                    <div class="toggle-icon">▼</div>
-                                </div>
-                                <div class="article-body">
-                                    <div class="article-content">${content}</div>
-                                </div>
-                            </div>
-                        `;
+                        // 压入对应期数的数组
+                        if (!issueDataStore[dateKey]) issueDataStore[dateKey] = [];
+                        issueDataStore[dateKey].push({ titleEn, titleZh, metaInfo, hook, link, content });
                     });
+
+                    // 2. 渲染 UI (按期渲染)
+                    let html = "";
+                    for (const [dateKey, articles] of Object.entries(issueDataStore)) {
+                        html += `
+                            <div class="issue-group">
+                                <div class="issue-header">
+                                    <h2 class="issue-title">📖 ${dateKey} · 共 ${articles.length} 篇</h2>
+                                    <button class="download-btn" onclick="downloadIssue('${dateKey}')">📥 下载本期 (MD)</button>
+                                </div>
+                        `;
+
+                        articles.forEach(art => {
+                            html += `
+                                <div class="article-card">
+                                    <div class="article-header" onclick="toggleCard(this)">
+                                        <div class="article-title-wrap">
+                                            <h3 class="article-title-en">${art.titleEn}</h3>
+                                            ${art.titleZh && !art.titleZh.includes("解析失败") ? `<h2 class="article-title-zh">${art.titleZh}</h2>` : ''}
+                                            ${art.metaInfo ? `<div class="article-meta-author">${art.metaInfo}</div>` : ''}
+                                            ${art.hook ? `<div class="article-hook">🎯 ${art.hook}</div>` : ''}
+                                            <div class="article-meta">
+                                                <span>🔗 <a href="${art.link}" target="_blank" onclick="event.stopPropagation();">阅读原刊</a></span>
+                                            </div>
+                                        </div>
+                                        <div class="toggle-icon">▼</div>
+                                    </div>
+                                    <div class="article-body">
+                                        <div class="article-content">${art.content}</div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += `</div>`; // 结束一期
+                    }
                     contentDiv.innerHTML = html;
                 })
                 .catch(error => {
