@@ -4,24 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
-    <title>AI 深度精读杂志架</title>
+    <title>书评深度集萃</title>
+    
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    
     <style>
         body { background-color: #f4f5f7; color: #333; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.8; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; background: transparent; padding: 0; }
         .header { text-align: center; margin-bottom: 30px; padding: 40px; background: #fff; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .header h1 { font-size: 32px; color: #111; margin-bottom: 10px; font-weight: 800; }
+        
+        /* 标题样式 */
+        .header h1 { font-size: 32px; color: #111; margin-bottom: 10px; font-weight: 800; letter-spacing: 2px; }
         
         .nav-tabs { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
         .nav-btn { background: #f0f2f5; border: none; padding: 10px 25px; border-radius: 30px; font-size: 16px; color: #555; cursor: pointer; transition: all 0.2s; font-weight: bold; }
         .nav-btn:hover { background: #e4e6eb; }
         .nav-btn.active { background: #111; color: #fff; }
 
-        /* 🚀 新增：按期归档的标题头样式 */
         .issue-group { margin-bottom: 50px; }
         .issue-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; margin-top: 30px; }
         .issue-title { font-size: 22px; font-weight: bold; color: #222; margin: 0; }
-        .download-btn { background: #0366d6; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 14px; cursor: pointer; transition: background 0.2s; font-weight: bold; }
-        .download-btn:hover { background: #0056b3; }
+        .download-btn { background: #111; color: white; border: none; padding: 8px 18px; border-radius: 20px; font-size: 14px; cursor: pointer; transition: background 0.2s; font-weight: bold; }
+        .download-btn:hover { background: #444; }
 
         .article-card { background: #fff; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden; transition: box-shadow 0.3s; }
         .article-card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
@@ -43,13 +47,19 @@
 
         .article-body { padding: 0 25px 30px 25px; display: none; border-top: 1px dashed #eee; margin-top: 10px; padding-top: 25px; }
         .article-content { font-size: 16px; color: #333; }
+        
+        /* 针对 AI 生成的列表和加粗做一点网页端的美化 */
+        .article-content ul { padding-left: 20px; }
+        .article-content li { margin-bottom: 8px; }
+        .article-content strong { color: #111; }
+        
         .loading { text-align: center; font-size: 16px; color: #888; padding: 50px; background: #fff; border-radius: 12px; margin-top: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>📚 AI 深度精读智库</h1>
+            <h1>📚 书评深度集萃</h1>
             <div class="nav-tabs">
                 <button class="nav-btn active" onclick="loadFeed('nyrb_ai_enhanced.xml', this)">纽约书评</button>
                 <button class="nav-btn" onclick="loadFeed('lrb_ai_enhanced.xml', this)">伦敦书评</button>
@@ -59,7 +69,6 @@
     </div>
 
     <script>
-        // 全局变量，用于存储按期分类的数据，方便下载时调用
         let issueDataStore = {};
 
         function toggleCard(headerElement) {
@@ -74,28 +83,32 @@
             }
         }
 
-        // 🚀 新增核心功能：将指定期数的文章打包成 Markdown 下载
+        // 🚀 核心升级：完美的 Markdown 离线生成引擎
         function downloadIssue(dateKey) {
             const articles = issueDataStore[dateKey];
             if (!articles) return;
 
-            let mdContent = `# 📚 深度精读周刊 - ${dateKey}\n\n`;
-            mdContent += `> 自动归档生成于 AI 杂志架\n\n---\n\n`;
+            // 初始化 Turndown 引擎，设置标题风格为标准的 # 语法
+            const turndownService = new TurndownService({ headingStyle: 'atx' });
+
+            let mdContent = `# 📚 书评深度集萃 - ${dateKey}\n\n`;
+            mdContent += `> 自动归档生成\n\n---\n\n`;
 
             articles.forEach((art, index) => {
+                // 拼接漂亮的文档头部
                 mdContent += `## ${index + 1}. ${art.titleZh}\n`;
                 mdContent += `*${art.titleEn}*\n\n`;
-                mdContent += `**${art.metaInfo}**\n\n`;
-                mdContent += `> 🎯 **核心洞见**：${art.hook}\n\n`;
+                if (art.metaInfo && !art.metaInfo.includes("未获取")) {
+                    mdContent += `**${art.metaInfo}**\n\n`;
+                }
+                if (art.hook && !art.hook.includes("未获取")) {
+                    mdContent += `> 🎯 **核心洞见**：${art.hook}\n\n`;
+                }
                 
-                // 将 HTML 正文转换回基础的 Markdown 文本 (简单处理)
-                let textBody = art.content.replace(/<h3.*?>/g, '\n### ').replace(/<\/h3>/g, '\n');
-                textBody = textBody.replace(/<p.*?>/g, '').replace(/<\/p>/g, '\n\n');
-                textBody = textBody.replace(/<br.*?>/g, '\n');
-                textBody = textBody.replace(/<li.*?>/g, '- ').replace(/<\/li>/g, '\n');
-                textBody = textBody.replace(/<[^>]+>/g, ''); // 移除多余的HTML
+                // 🪄 见证奇迹的时刻：让 Turndown 帮你把 HTML 完美转回带星号、加粗、列表的纯正 Markdown
+                let textBody = turndownService.turndown(art.content);
                 
-                mdContent += `${textBody.trim()}\n\n`;
+                mdContent += `${textBody}\n\n`;
                 mdContent += `🔗 [阅读英文原刊](${art.link})\n\n---\n\n`;
             });
 
@@ -104,7 +117,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `精读智库_${dateKey.replace(/\s+/g, '')}.md`;
+            a.download = `书评集萃_${dateKey.replace(/\s+/g, '')}.md`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -118,7 +131,6 @@
             const contentDiv = document.getElementById("content");
             contentDiv.innerHTML = "<div class='loading'>正在拉取数据中... 🚀</div>";
             
-            // 每次切换时清空数据存储
             issueDataStore = {};
 
             fetch(xmlFile + '?t=' + new Date().getTime())
@@ -131,15 +143,13 @@
                         return;
                     }
                     
-                    // 1. 数据解析与按期分组 (Grouping)
                     items.forEach(item => {
                         const titleEn = item.querySelector("title")?.textContent || "Untitled";
                         const pubDate = item.querySelector("pubDate")?.textContent || "未知时间";
                         const link = item.querySelector("link")?.textContent || "#";
                         const desc = item.querySelector("description")?.textContent || "";
                         
-                        // 生成这一期的标识（由于我们是一次抓整期，相同的日期就是一期）
-                        const dateKey = new Date(pubDate).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) + " 智库更新";
+                        const dateKey = new Date(pubDate).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) + " 更新";
 
                         let titleZh = "解析失败", metaInfo = "", hook = "";
                         if (desc.includes("|||")) {
@@ -152,12 +162,10 @@
                         let contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
                         let content = contentNode ? contentNode.textContent : "<p>无正文</p>";
 
-                        // 压入对应期数的数组
                         if (!issueDataStore[dateKey]) issueDataStore[dateKey] = [];
                         issueDataStore[dateKey].push({ titleEn, titleZh, metaInfo, hook, link, content });
                     });
 
-                    // 2. 渲染 UI (按期渲染)
                     let html = "";
                     for (const [dateKey, articles] of Object.entries(issueDataStore)) {
                         html += `
@@ -175,8 +183,8 @@
                                         <div class="article-title-wrap">
                                             <h3 class="article-title-en">${art.titleEn}</h3>
                                             ${art.titleZh && !art.titleZh.includes("解析失败") ? `<h2 class="article-title-zh">${art.titleZh}</h2>` : ''}
-                                            ${art.metaInfo ? `<div class="article-meta-author">${art.metaInfo}</div>` : ''}
-                                            ${art.hook ? `<div class="article-hook">🎯 ${art.hook}</div>` : ''}
+                                            ${art.metaInfo && !art.metaInfo.includes("未获取") ? `<div class="article-meta-author">${art.metaInfo}</div>` : ''}
+                                            ${art.hook && !art.hook.includes("未获取") ? `<div class="article-hook">🎯 ${art.hook}</div>` : ''}
                                             <div class="article-meta">
                                                 <span>🔗 <a href="${art.link}" target="_blank" onclick="event.stopPropagation();">阅读原刊</a></span>
                                             </div>
@@ -189,7 +197,7 @@
                                 </div>
                             `;
                         });
-                        html += `</div>`; // 结束一期
+                        html += `</div>`;
                     }
                     contentDiv.innerHTML = html;
                 })
