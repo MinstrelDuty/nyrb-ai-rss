@@ -3,64 +3,80 @@ import time
 import logging
 import markdown
 import requests
+import re  # 🚀 新增：用于精准读取旧档案的正规表达式引擎
 from bs4 import BeautifulSoup
-from feedgen.feed import FeedGenerator
-from openai import OpenAI  # 👈 换成了兼容的 OpenAI 库
+from email.utils import formatdate
+from openai import OpenAI
 
 # ==========================================
-# 0. 日志配置与 DeepSeek 初始化
+# 0. 初始化
 # ==========================================
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# 强力清洗秘钥首尾的空格、换行！
 api_key = os.getenv("DEEPSEEK_API_KEY", "").strip(" '\"\n\r\t")
-
-logging.info(f"🔑 当前获取到的 API 秘钥长度为: {len(api_key)} 字符")
 if len(api_key) == 0:
-    logging.error("❌ 致命错误：秘钥为空！请检查 GitHub 的 DEEPSEEK_API_KEY 配置！")
+    logging.error("❌ 致命错误：秘钥为空！")
 
-# 🚀 狸猫换太子：用 OpenAI 的库，连上 DeepSeek 的服务器！
-client = OpenAI(
-    api_key=api_key,
-    base_url="https://api.deepseek.com"
-)
+client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 
-# 网页抓取伪装头
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
     "Referer": "https://www.google.com/",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 }
 
+# 🚀 历史设定：你想在这个网页上保留多少篇历史文章？
+MAX_HISTORY = 50 
+XML_FILE = 'nyrb_ai_enhanced.xml'
+
 # ==========================================
-# 1. 抓取最新文章链接
+# 1. 记忆读取与网页抓取
 # ==========================================
+
+# 🧠 核心新功能：读取旧的 XML 档案，提取已有的文章和链接
+def get_existing_items():
+    existing_urls = set()
+    existing_items_xml = []
+    
+    if os.path.exists(XML_FILE):
+        try:
+            with open(XML_FILE, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 使用正则极其安全地把每一篇旧文章完整的切下来
+            item_blocks = re.findall(r'<item>.*?</item>', content, re.DOTALL)
+            for block in item_blocks:
+                existing_items_xml.append(block)
+                # 记住这篇文章的链接，用于一会“查重”
+                link_match = re.search(r'<link>(.*?)</link>', block)
+                if link_match:
+                    existing_urls.add(link_match.group(1).strip())
+                    
+            logging.info(f"📂 成功读取本地记忆：发现了 {len(existing_items_xml)} 篇历史文章。")
+        except Exception as e:
+            logging.warning(f"⚠️ 读取历史记录失败，将创建全新档案: {e}")
+            
+    return existing_urls, existing_items_xml
+
 def get_latest_article_urls(max_items=8):
-    logging.info("正在从 NYRB 主页提取最新文章链接...")
     urls = []
     try:
         response = requests.get("https://www.nybooks.com/", headers=HEADERS, timeout=15)
         soup = BeautifulSoup(response.text, 'html.parser')
-        
         for a_tag in soup.find_all('a', href=True):
             href = a_tag['href']
             if ('/articles/' in href or '/online/' in href) and href not in urls:
                 urls.append(href)
                 if len(urls) >= max_items:
                     break
-        logging.info(f"🎉 成功提取到 {len(urls)} 篇文章链接！")
     except Exception as e:
         logging.error(f"抓取链接失败: {e}")
     return urls
 
-# ==========================================
-# 2. 提取单篇文章正文
-# ==========================================
 def scrape_article(url):
     try:
         response = requests.get(url, headers=HEADERS, timeout=15)
         soup = BeautifulSoup(response.text, 'html.parser')
-        
         title_tag = soup.find('h1')
         title = title_tag.text.strip() if title_tag else "未知标题"
         
@@ -71,105 +87,117 @@ def scrape_article(url):
             
         paragraphs = soup.find_all('p')
         text = "\n".join([p.text.strip() for p in paragraphs if p.text.strip()])
-        
         return {"title": title, "url": url, "text": text, "image_url": image_url}
     except Exception as e:
-        logging.error(f"提取文章正文失败 {url}: {e}")
         return None
 
 # ==========================================
-# 3. AI 深入处理 (DeepSeek 版本)
+# 2. AI 深入处理
 # ==========================================
 def process_with_ai(article_data):
     text = article_data.get("text", "")
     if len(text) < 500:
-        return "<p>文章内容过短，无法生成 AI 总结。</p>"
+        return "<p>文章过短，无法总结。</p>"
 
-    # DeepSeek 能力强，放宽到 15000 字符
     text = text[:15000] 
 
-    system_prompt = """你是一位博学多识的书评人。请阅读文章并以 Markdown 格式返回：
-1. 📰 **核心摘要**：300字概括。
+    system_prompt = """你是一位专业的书评人。请直接输出以下内容的Markdown排版，绝对不要包含“好的”、“我已经阅读”等废话：
+1. 📰 **核心摘要**：详细概括。
 2. 💡 **AI 评述**：深度分析视角。
-3. 📚 **扩展阅读**：推荐2-3本书。
-请全部使用中文，多用 Emoji 和粗体。"""
+3. 📚 **扩展阅读**：推荐2-3本书。"""
 
-    max_retries = 3
-    for attempt in range(max_retries):
-        logging.info(f"🤖 正在处理: {article_data['title']} (第 {attempt + 1} 次尝试)")
+    for attempt in range(3):
         try:
-            # 🚀 调用 DeepSeek 模型
             response = client.chat.completions.create(
                 model="deepseek-chat",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"文章标题：《{article_data['title']}》\n正文：\n{text}"}
-                ]
+                    {"role": "user", "content": f"标题：《{article_data['title']}》\n正文：\n{text}"}
+                ],
+                max_tokens=4000, 
+                temperature=0.7
             )
             ai_markdown = response.choices[0].message.content
             ai_html = markdown.markdown(ai_markdown, extensions=['extra'])
             
             wrapper = f'<div style="font-size:16px; line-height:1.6; color:#333;">{ai_html}</div>'
-            
             if article_data.get("image_url"):
                 img = f'<img src="{article_data["image_url"]}" style="width:100%; border-radius:10px;"/><br>'
                 return img + wrapper
             return wrapper
-            
         except Exception as e:
-            error_msg = str(e)
-            if '429' in error_msg or 'RateLimit' in error_msg:
-                wait_time = 30
-                logging.warning(f"⚠️ 触发限流，休眠 {wait_time} 秒后重试...")
-                time.sleep(wait_time)
+            if '429' in str(e) or 'RateLimit' in str(e):
+                time.sleep(30)
             else:
-                logging.error(f"❌ AI 处理发生错误: {e}")
-                return f"<p style='color:red;'>AI 处理期间发生未知错误: {e}</p>"
-                
-    return "<p style='color:red;'>⚠️ 经过多次重试依然触发限制，跳过此文章摘要。</p>"
+                return f"<p style='color:red;'>AI 错误: {e}</p>"
+    return "<p style='color:red;'>触发限制，跳过此文章摘要。</p>"
 
 # ==========================================
-# ==========================================
-# 4. 主函数：生成 RSS
+# 3. 智能查重与拼装
 # ==========================================
 def main():
     if len(api_key) == 0:
-        logging.error("⛔ 秘钥为空，程序强行终止！")
         return
-
-    # 这里已经帮你改成了 8 篇
+        
+    # 1. 唤醒记忆：读取旧文章列表
+    existing_urls, existing_items_xml = get_existing_items()
+    
+    # 2. 去看世界：抓取最新的 8 篇链接
     urls = get_latest_article_urls(max_items=8) 
     if not urls:
         return
 
-    fg = FeedGenerator()
-    fg.title("纽约书评 - AI 深度精读版 (DeepSeek)")
-    fg.link(href="https://www.nybooks.com/", rel="alternate")
-    fg.description("由 DeepSeek 自动抓取并提供中文深度总结的 NYRB 订阅源")
-    fg.language("zh-CN")
+    new_items_xml = []
+    
+    for url in urls:
+        # 🚀 智能查重拦截：如果这篇以前翻译过了，直接跳过！省钱省力！
+        if url in existing_urls:
+            logging.info(f"⏭️ 这篇历史已存在，无需重新翻译，跳过: {url}")
+            continue
 
-    for i, url in enumerate(urls):
-        logging.info(f"正在抓取文章: {url}")
+        logging.info(f"✨ 发现新文章，正在抓取并处理: {url}")
         article_data = scrape_article(url)
-        
         if article_data and article_data["text"]:
             ai_summary_html = process_with_ai(article_data)
+            pub_date = formatdate(localtime=False)
             
-            fe = fg.add_entry()
-            fe.title(article_data["title"])
-            fe.link(href=url)
-            
-            # ✅ 完美的 RSS 全文支持
-            fe.description("AI 深度精读已生成，请点击展开查看完整内容。")
-            fe.content(content=ai_summary_html, type='html')
-            
-            if i < len(urls) - 1:
-                logging.info("⏳ 休息 20 秒保护配额...")
-                time.sleep(20)
+            item_xml = f"""
+    <item>
+        <title><![CDATA[{article_data["title"]}]]></title>
+        <link>{url}</link>
+        <guid isPermaLink="false">{url}</guid>
+        <pubDate>{pub_date}</pubDate>
+        <description><![CDATA[这只是个引子，请点开查看完整的排版长文！]]></description>
+        <content:encoded><![CDATA[{ai_summary_html}]]></content:encoded>
+    </item>"""
+            new_items_xml.append(item_xml)
+            time.sleep(20) # 只有处理了新文章，才需要休息
 
-    # 这两行已经完美缩进对齐
-    fg.rss_file('nyrb_ai_enhanced.xml', pretty=True)
-    logging.info("✅ RSS 文件 nyrb_ai_enhanced.xml 生成完毕！")
+    # 3. 新老交替：把新鲜出炉的文章放在最前面，旧文章跟在后面
+    all_items = new_items_xml + existing_items_xml
+    
+    # 4. 保持身材：最多只保留最近的 50 篇（也就是 MAX_HISTORY 的设定），防止文件撑爆
+    all_items = all_items[:MAX_HISTORY]
+
+    # 5. 组装全新的 XML 外壳
+    rss_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<channel>
+    <title><![CDATA[纽约书评 - AI 深度精读版]]></title>
+    <link>https://www.nybooks.com/</link>
+    <description><![CDATA[由 DeepSeek 自动抓取并提供中文深度总结]]></description>
+    <language>zh-CN</language>
+    <pubDate>{formatdate(localtime=False)}</pubDate>
+"""
+    for item in all_items:
+        rss_xml += item
+        
+    rss_xml += "\n</channel>\n</rss>"
+
+    with open('nyrb_ai_enhanced.xml', 'w', encoding='utf-8') as f:
+        f.write(rss_xml)
+        
+    logging.info(f"✅ 更新完毕！本次新增 {len(new_items_xml)} 篇文章，当前你的网站上共有 {len(all_items)} 篇历史沉淀。")
 
 if __name__ == "__main__":
     main()
