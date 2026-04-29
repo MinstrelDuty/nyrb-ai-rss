@@ -59,15 +59,23 @@ def get_latest_article_urls(existing_urls, max_items=10):
         for a_tag in soup.find_all('a', href=True):
             href = a_tag['href']
             
-            # 🚀 NYRB 正则匹配：锁定形如 /articles/2026/05/14/文章标题/ 的链接
-            if re.match(r'^/articles/\d{4}/\d{2}/\d{2}/[^/]+/?', href):
-                # 如果已经是完整链接就不拼了，如果只是路径就拼上主域名
-                full_url = f"https://www.nybooks.com{href}" if href.startswith('/') else href
+            # 🚀 修复点 1：把 match 换成 search，不论开头是 http 还是 / 都能认出来！
+            if re.search(r'/articles/\d{4}/\d{2}/\d{2}/', href):
                 
-                # 🧠 核心排队逻辑：不在本次列表，也不在历史记忆里
+                # 🚀 修复点 2：智能拼接完整网址
+                if href.startswith('/'):
+                    full_url = f"https://www.nybooks.com{href}"
+                elif href.startswith('http'):
+                    full_url = href
+                else:
+                    continue
+                
+                # 顺手砍掉链接尾部可能带有的评论锚点（防重复抓取）
+                full_url = full_url.split('#')[0]
+                
+                # 🧠 核心排队逻辑
                 if full_url not in urls and full_url not in existing_urls:
                     urls.append(full_url)
-                    # 抓满 10 篇停止，剩下的等下一次 Actions 运行
                     if len(urls) >= max_items:
                         break
     except Exception as e:
@@ -146,7 +154,7 @@ def main():
     # 1. 唤醒记忆
     existing_urls, existing_items_xml = get_existing_items()
     
-    # 2. 寻找新猎物（传入现有记忆，每次抓 10 篇）
+    # 2. 寻找新猎物
     urls = get_latest_article_urls(existing_urls, max_items=10) 
     
     if not urls: 
