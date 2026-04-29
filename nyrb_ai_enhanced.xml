@@ -1,14 +1,12 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
-  <channel>
-    <title>纽约书评 - AI 深度精读版 (DeepSeek)</title>
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<channel>
+    <title><![CDATA[纽约书评 - AI 深度精读版]]></title>
     <link>https://www.nybooks.com/</link>
-    <description>由 DeepSeek 自动抓取并提供中文深度总结的 NYRB 订阅源</description>
-    <docs>http://www.rssboard.org/rss-specification</docs>
-    <generator>python-feedgen</generator>
+    <description><![CDATA[由 DeepSeek 自动抓取并提供中文深度总结]]></description>
     <language>zh-CN</language>
-    <lastBuildDate>Tue, 28 Apr 2026 15:10:51 +0000</lastBuildDate>
-    <item>
+    <pubDate>Wed, 29 Apr 2026 07:07:58 -0000</pubDate>
+<item>
       <title>Visions of Depravity</title>
       <link>https://www.nybooks.com/articles/2026/05/14/visions-of-depravity-ceija-stojka-making-visible/</link>
       <description>AI 深度精读已生成，请点击展开查看完整内容。</description>
@@ -25,8 +23,7 @@
 &lt;li&gt;&lt;strong&gt;《无名的造物：罗姆人、辛提人与纳粹殖民主义》&lt;/strong&gt;（米歇尔·罗斯）&lt;br /&gt;
    聚焦纳粹对罗姆人的种族灭绝政策，补足本文未展开的历史语境，揭示其反抗与生存策略。&lt;/li&gt;
 &lt;/ol&gt;&lt;/div&gt;</content:encoded>
-    </item>
-    <item>
+    </item><item>
       <title>Inflatable Life</title>
       <link>https://www.nybooks.com/articles/2026/05/14/inflatable-life-paul-chan-automa-mon-amour/</link>
       <description>AI 深度精读已生成，请点击展开查看完整内容。</description>
@@ -46,8 +43,7 @@
 &lt;li&gt;&lt;strong&gt;《The Work of Art in the Age of Mechanical Reproduction》 by Walter Benjamin&lt;/strong&gt;：Benjamin 的核心文本讨论技术如何改变艺术的生产、传播与神圣性（“光晕”）。Chan 的充气雕塑通过工业材料与动力技术，恰恰在 &lt;strong&gt;重造&lt;/strong&gt; 一种“光晕”——一种短暂的、依赖于机械呼吸的生命灵光。阅读此书，你会理解为何那些“扑腾”能如此打动人心。&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;《Flatland: A Romance of Many Dimensions》 by Edwin A. Abbott&lt;/strong&gt;：这本 1884 年的数学讽刺小说以二维平面世界为背景，探讨维度、认知与歧视。Paul Chan 的“Breathers”在物理上处于 &lt;strong&gt;二维与三维的边界&lt;/strong&gt;（充气后鼓胀的平面管状物），并试图用简单的空气运动模拟复杂的生命现象。Abott 的寓言将帮助你理解 Chan 如何通过 &lt;strong&gt;限制材料与维度&lt;/strong&gt;，来逼问“生命”的本质。&lt;/li&gt;
 &lt;/ul&gt;&lt;/div&gt;</content:encoded>
-    </item>
-    <item>
+    </item><item>
       <title>The Masked Avengers</title>
       <link>https://www.nybooks.com/articles/2026/05/14/the-masked-avengers-how-to-be-a-guerrilla-girl/</link>
       <description>AI 深度精读已生成，请点击展开查看完整内容。</description>
@@ -87,8 +83,7 @@
 &lt;/ul&gt;
 &lt;/li&gt;
 &lt;/ol&gt;&lt;/div&gt;</content:encoded>
-    </item>
-    <item>
+    </item><item>
       <title>Vengeance Is Theirs</title>
       <link>https://www.nybooks.com/online/2026/04/26/vengeance-is-theirs/</link>
       <description>AI 深度精读已生成，请点击展开查看完整内容。</description>
@@ -123,8 +118,7 @@
    吉拉尔的"替罪羊机制"理论完美阐释《泰特斯》：社会秩序重建永远需要仪式性暴力，而莎士比亚剧作正是这种机制的终极显影。&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ol&gt;&lt;/div&gt;</content:encoded>
-    </item>
-    <item>
+    </item><item>
       <title>Waiting for Day Zero</title>
       <link>https://www.nybooks.com/online/2026/04/22/waiting-for-day-zero-los-angeles-iranians/</link>
       <description>AI 深度精读已生成，请点击展开查看完整内容。</description>
@@ -150,8 +144,7 @@
 &lt;li&gt;📗 &lt;strong&gt;《失败国家的形成：流亡政治与国际秩序》&lt;/strong&gt; (The Making of a Failed State: Exile Politics and the International Order) by &lt;strong&gt;Yael Navaro-Yashin&lt;/strong&gt; — 虽然并非专论伊朗，但本书从人类学和政治学角度剖析了流亡者如何通过"等待"和"记忆"来构建政治行动。它对理解洛杉矶君主主义者那种"沉浸于历史创伤、等待外援、忽视当下现实"的思维框架极具启发性。&lt;/li&gt;
 &lt;li&gt;📘 &lt;strong&gt;《革命之海：伊朗的精神、抗议与国家权力》&lt;/strong&gt; (Revolutionary Waves: The Iranian Uprising and the Politics of Protest) by &lt;strong&gt;Narges Bajoghli&lt;/strong&gt; — 聚焦于伊朗国内近年的"女性、生命、自由"运动及威权主义应对。对比阅读本文与本书，会发现君主主义者"喧宾夺主"的"劫持"行为，与伊朗国内真实、草根且不需外人代理的民主运动形成了鲜明讽刺。&lt;/li&gt;
 &lt;/ol&gt;&lt;/div&gt;</content:encoded>
-    </item>
-    <item>
+    </item><item>
       <title>We Goofed</title>
       <link>https://www.nybooks.com/online/2026/04/25/we-goofed/</link>
       <description>AI 深度精读已生成，请点击展开查看完整内容。</description>
@@ -193,8 +186,7 @@
 &lt;/li&gt;
 &lt;li&gt;推荐理由：探讨文学形式（如印刷排版）如何成为意识形态载体。文中乔伊斯“误印即风格”的宣言，在此书“风格即道德”的论断下得到理论支持：&lt;strong&gt;每次技术错误，都是对权威文本的微型革命&lt;/strong&gt;。&lt;/li&gt;
 &lt;/ol&gt;&lt;/div&gt;</content:encoded>
-    </item>
-    <item>
+    </item><item>
       <title>London’s Brutal Underground</title>
       <link>https://www.nybooks.com/articles/2026/05/14/londons-brutal-underground-london-falling-radden-keefe/</link>
       <description>AI 深度精读已生成，请点击展开查看完整内容。</description>
@@ -244,8 +236,7 @@
 &lt;/ul&gt;
 &lt;/li&gt;
 &lt;/ol&gt;&lt;/div&gt;</content:encoded>
-    </item>
-    <item>
+    </item><item>
       <title>How Should a Pixel Be?</title>
       <link>https://www.nybooks.com/articles/2026/05/14/how-should-a-pixel-be-dry-leaf-koberidze/</link>
       <description>AI 深度精读已生成，请点击展开查看完整内容。</description>
@@ -274,5 +265,5 @@
 &lt;/li&gt;
 &lt;/ol&gt;&lt;/div&gt;</content:encoded>
     </item>
-  </channel>
+</channel>
 </rss>
