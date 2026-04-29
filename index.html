@@ -3,68 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>纽约书评 - AI 深度精读版</title>
+    <title>AI 深度精读杂志架</title>
     <style>
         body { background-color: #f0f2f5; color: #333; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.8; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        .header { text-align: center; margin-bottom: 50px; border-bottom: 2px solid #eee; padding-bottom: 30px; }
-        .header h1 { font-size: 32px; color: #111; margin-bottom: 10px; font-weight: 800; letter-spacing: 1px; }
-        .header p { color: #666; font-size: 15px; margin: 0; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 32px; color: #111; margin-bottom: 10px; font-weight: 800; }
+        
+        /* 🚀 新增：导航栏样式 */
+        .nav-tabs { display: flex; justify-content: center; gap: 15px; margin-bottom: 40px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+        .nav-btn { background: #f8f9fa; border: 1px solid #ddd; padding: 10px 25px; border-radius: 30px; font-size: 16px; color: #555; cursor: pointer; transition: all 0.3s; }
+        .nav-btn:hover { background: #e9ecef; }
+        .nav-btn.active { background: #111; color: #fff; border-color: #111; }
+
         .article { margin-bottom: 60px; padding-bottom: 40px; border-bottom: 1px dashed #e0e0e0; }
         .article:last-child { border-bottom: none; }
         .article-title { font-size: 26px; color: #1a1a1a; margin-bottom: 15px; font-weight: bold; line-height: 1.4; }
         .article-date { font-size: 13px; color: #999; margin-bottom: 25px; }
         .article-content { font-size: 17px; color: #444; }
-        .article-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 20px 0; display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .article-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 20px 0; display: block; }
         .article-content h2, .article-content h3 { color: #222; margin-top: 35px; margin-bottom: 15px; }
-        .article-content strong { color: #d32f2f; }
         .loading { text-align: center; font-size: 18px; color: #888; padding: 50px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>📰 纽约书评 - AI 精读杂志</h1>
-            <p>全自动抓取 · DeepSeek 强力驱动 · 无损排版</p>
+            <h1>📚 AI 深度精读杂志架</h1>
         </div>
-        <div id="content" class="loading">正在拼命加载最新文章，请稍候... 🚀</div>
+        
+        <div class="nav-tabs">
+            <button class="nav-btn active" onclick="loadFeed('nyrb_ai_enhanced.xml', this)">纽约书评 (NYRB)</button>
+            <button class="nav-btn" onclick="loadFeed('lrb_ai_enhanced.xml', this)">伦敦书评 (LRB)</button>
+        </div>
+
+        <div id="content" class="loading">点击上方按钮加载内容... 🚀</div>
     </div>
 
     <script>
-        // 自动拉取同目录下的 XML 文件并渲染
-        fetch('nyrb_ai_enhanced.xml?t=' + new Date().getTime())
-            .then(response => response.text())
-            .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
-            .then(data => {
-                const items = data.querySelectorAll("item");
-                const contentDiv = document.getElementById("content");
-                if (items.length === 0) {
-                    contentDiv.innerHTML = "<h2 style='color:red;text-align:center;'>暂无文章，请确认 XML 文件已生成。</h2>";
-                    return;
-                }
-                
-                let html = "";
-                items.forEach(item => {
-                    const title = item.querySelector("title")?.textContent || "无标题";
-                    const pubDate = item.querySelector("pubDate")?.textContent || "未知时间";
-                    
-                    // 寻找全文标签
-                    let contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
-                    let content = contentNode ? contentNode.textContent : (item.querySelector("description")?.textContent || "无正文");
+        // 🚀 新增：动态加载 XML 的函数
+        function loadFeed(xmlFile, btnElement) {
+            // 切换按钮高亮状态
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            if(btnElement) btnElement.classList.add('active');
 
-                    html += `
-                        <div class="article">
-                            <div class="article-title">${title}</div>
-                            <div class="article-date">更新时间: ${pubDate}</div>
-                            <div class="article-content">${content}</div>
-                        </div>
-                    `;
+            const contentDiv = document.getElementById("content");
+            contentDiv.innerHTML = "<div class='loading'>正在拼命加载中... 🚀</div>";
+
+            fetch(xmlFile + '?t=' + new Date().getTime())
+                .then(response => response.text())
+                .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+                .then(data => {
+                    const items = data.querySelectorAll("item");
+                    if (items.length === 0) {
+                        contentDiv.innerHTML = "<h2 style='color:red;text-align:center;'>暂无文章或文件不存在。</h2>";
+                        return;
+                    }
+                    
+                    let html = "";
+                    items.forEach(item => {
+                        const title = item.querySelector("title")?.textContent || "无标题";
+                        const pubDate = item.querySelector("pubDate")?.textContent || "未知时间";
+                        let contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
+                        let content = contentNode ? contentNode.textContent : (item.querySelector("description")?.textContent || "无正文");
+
+                        html += `
+                            <div class="article">
+                                <div class="article-title">${title}</div>
+                                <div class="article-date">更新时间: ${pubDate}</div>
+                                <div class="article-content">${content}</div>
+                            </div>
+                        `;
+                    });
+                    contentDiv.innerHTML = html;
+                })
+                .catch(error => {
+                    contentDiv.innerHTML = `<h2 style='color:red;text-align:center;'>加载失败 (可能脚本还未生成该频道的XML)</h2>`;
                 });
-                contentDiv.innerHTML = html;
-            })
-            .catch(error => {
-                document.getElementById("content").innerHTML = `<h2 style='color:red;text-align:center;'>加载失败: ${error}</h2>`;
-            });
+        }
+
+        // 页面打开时，默认加载纽约书评
+        window.onload = () => loadFeed('nyrb_ai_enhanced.xml', document.querySelector('.nav-btn'));
     </script>
 </body>
 </html>
