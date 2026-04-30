@@ -52,66 +52,71 @@ def get_existing_items():
     return existing_urls, existing_items_xml
 
 def get_latest_article_urls(existing_urls, max_items=60):
-    """【Plan B 终极进化】顺藤摸瓜，智能解析 Yoast Sitemap 根目录"""
+    """【Plan B 终极进化】智能追踪真正的文章分片地图，彻底排除话题和分类页"""
     import re
     import requests
     
-    print("🕵️ 启动 Plan B：直捣 Yoast SEO 网站地图总根目录...")
+    print("🕵️ 启动 Plan B：正在从 Yoast 根目录精准定位真正的文章数据库...")
     urls = []
     
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0",
         "Accept": "text/xml,application/xml"
     }
     
     try:
-        # 1. 直接访问 Yoast 默认的根地图
+        # 1. 访问总地图索引
         index_url = "https://www.the-tls.com/sitemap_index.xml"
-        print(f"📂 正在敲击总网站地图大门: {index_url}")
+        print(f"📂 正在扫描总指挥部: {index_url}")
         
         response = requests.get(index_url, headers=headers, timeout=20)
         
-        # 拦截判断：如果被防火墙挡了，或者又被重定向到了假首页
+        # 兜底：如果被拦截，呼叫 Jina 强行读取
         if response.status_code != 200 or "<sitemap" not in response.text:
-            print("⚠️ 直连总大门失败，呼叫 Jina 传送门强行吸取...")
+            print("⚠️ 根目录直连受阻，呼叫 Jina 传送门强制解析...")
             jina_url = f"https://r.jina.ai/{index_url}"
             response = requests.get(jina_url, headers={"Accept": "text/plain"}, timeout=30)
             
-        # 2. 从根地图中找出真正的“文章子地图”
-        # 寻找类似 tls_articles-sitemap.xml 这样的分片
+        # 2. 提取所有子地图链接
         sub_maps = re.findall(r'<loc>(https://www.the-tls.com/[a-zA-Z0-9\-_]*sitemap[a-zA-Z0-9\-_]*\.xml)</loc>', response.text)
         
-        target_sitemap = ""
-        # 优先寻找包含 article 或 post 的地图
-        article_maps = [m for m in sub_maps if 'article' in m or 'post' in m]
-        
-        if article_maps:
-            target_sitemap = article_maps[-1] # 最后一份通常包含本周最新文章
-        elif sub_maps:
-            target_sitemap = sub_maps[-1] # 退而求其次
-        else:
-            print("❌ 无法在根地图中找到子地图分片！可能是被盾拦截了。")
+        if not sub_maps:
+            print("❌ 根地图解析失败，未发现子地图链接。")
             return []
-            
-        print(f"🎯 顺藤摸瓜成功！锁定最新文章数据库: {target_sitemap}")
+
+        # 🎯 核心逻辑：精准筛选“文章正文”地图
+        # 我们要找包含 article 或 post 的，但绝对不能包含 topic, category, author, tag 等关键词
+        target_article_maps = [
+            m for m in sub_maps 
+            if ('article' in m or 'post' in m) and not any(x in m for x in ['topic', 'category', 'author', 'tag', 'issue'])
+        ]
         
-        # 3. 抓取这个包含具体文章链接的子地图
+        if not target_article_maps:
+            print("⚠️ 未找到纯净的文章地图，尝试退而求其次寻找 tls_issues...")
+            target_article_maps = [m for m in sub_maps if 'tls_issues' in m]
+
+        if not target_article_maps:
+             print("❌ 无法锁定文章地图分片。请检查地图结构。")
+             return []
+
+        # 获取最后一份地图（通常是最新的一份）
+        target_sitemap = target_article_maps[-1]
+        print(f"🎯 成功锁定目标！正在深入底层数据库: {target_sitemap}")
+        
+        # 3. 抓取选定的子地图
         resp2 = requests.get(target_sitemap, headers=headers, timeout=20)
         if resp2.status_code != 200 or "<loc>" not in resp2.text:
              resp2 = requests.get(f"https://r.jina.ai/{target_sitemap}", headers={"Accept": "text/plain"}, timeout=30)
              
-        # 4. 暴力提取文章 URL
+        # 4. 提取具体文章链接并倒序排列（从最新开始抓）
         raw_links = re.findall(r'https://www.the-tls.com/[a-zA-Z0-9\-\/]+', resp2.text)
-        raw_links = list(dict.fromkeys(raw_links)) # 列表去重
-        
-        # Yoast 的地图最后更新的文章通常在最下面，所以我们倒序遍历
+        raw_links = list(dict.fromkeys(raw_links))
         raw_links.reverse()
         
         for href in raw_links:
-            # 严格过滤不需要的页面
+            # 二次防御过滤：排除地图里可能残留的非文章长链接
             if len(href.split('/')) > 4:
-                # 排除规则
-                if any(x in href for x in ['/issues/', '/categor', '/author', '/tag', '/about', '/buy', '/login', '/subscribe', '/my-account', '/letters', 'wp-content', '.xml']):
+                if any(x in href for x in ['/issues/', '/categor', '/author', '/tag', '/about', '/buy', '/login', '/subscribe', '/my-account', '/letters', 'wp-content', '.xml', '/topics/']):
                     continue
                     
                 if href not in existing_urls and href not in urls:
@@ -119,11 +124,11 @@ def get_latest_article_urls(existing_urls, max_items=60):
                     if len(urls) >= max_items:
                         break
                         
-        print(f"🎯 偷家大获全胜！成功从底层抽出 {len(urls)} 篇纯净文章。")
+        print(f"✅ 提炼成功！共从底层抽取出 {len(urls)} 篇真正的深度长文。")
         return urls
         
     except Exception as e:
-        print(f"❌ 偷家行动失败: {e}")
+        print(f"❌ Plan B 运行过程中发生不可预知的错误: {e}")
         return []
 # ==========================================
 # 2. 核心引擎：Jina 空间传送门与 AI 提炼
@@ -178,7 +183,7 @@ def process_with_ai(article_data):
     
     # 针对 TLS 的超浓缩版提示词
     system_prompt = """你是一位为时间宝贵的精英读者写作的资深主笔。请基于提供的文章撰写精读报告。
-【最高指令】：本文篇幅较短，总字数必须极其严苛地控制在 400-600 字左右！语言必须极度凝练、犀利。严禁以“想象一下”等呆板词汇开头。
+【最高指令】：本文篇幅较短，总字数必须极其严苛地控制在 600-700 字左右！语言必须极度凝练、犀利。严禁以“想象一下”等呆板词汇开头。
 
 请务必严格按照以下带有【】的标签格式输出：
 
@@ -193,13 +198,13 @@ def process_with_ai(article_data):
 
 【正文】
 ### 📰 核心脉络
-（150-200字）极其简练地梳理文章逻辑，只保留最核心的冲突或观点。
+（约300字）极其简练地梳理文章逻辑，只保留最核心的冲突或观点。
 
 ### 🧠 独立点评
-（约100字）简明扼要地指出文章在思想史或艺术界的价值。
+（约200字）简明扼要地指出文章在思想史或艺术界的价值。
 
 ### 📚 延伸矩阵
-（严禁伪造！只需推荐 1-2 本核心相关或不同观点的真实著作，每本一句话介绍）"""
+（严禁伪造！只需推荐 2-3 本核心相关或不同观点的真实著作，每本一句话介绍）"""
 
     for attempt in range(3):
         try:
