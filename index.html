@@ -1,30 +1,29 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TLS 书评深度集萃 - 精读报告</title>
+    <title>书评深度集萃 - AI 精读版</title>
     <style>
-        /* --- 核心样式重置 --- */
+        /* --- 全局与容器（解决宽窄不齐的核心） --- */
         body { 
             background-color: #f4f5f7; 
             color: #333; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
             line-height: 1.8; 
             margin: 0; 
-            padding: 20px 0; /* 侧边距由 container 统一控制 */
+            padding: 30px 0; 
         }
 
-        /* --- 宽度锁定闸门：解决宽窄不一的关键 --- */
+        /* 终极闸门：死死锁定 800px，对齐所有模块 */
         .container { 
-            max-width: 800px !important; /* 强制锁定宽度，绝不让文章框变宽 */
+            max-width: 800px !important; 
             margin: 0 auto !important; 
-            width: 95%; /* 适配移动端 */
+            width: 92%; 
             box-sizing: border-box !important; 
         }
 
-        /* --- 顶部白色页眉 --- */
+        /* --- 顶部页眉 --- */
         .header { 
             text-align: center; 
             margin-bottom: 30px; 
@@ -35,107 +34,136 @@
             box-sizing: border-box !important;
         }
 
-        .header h1 { 
-            margin: 0; 
-            font-size: 28px; 
-            letter-spacing: -0.5px;
+        .header h1 { margin: 0; font-size: 28px; color: #111; }
+        .tabs { margin-top: 15px; }
+        .tab-btn {
+            background: #eee; border: none; padding: 6px 15px; margin: 0 5px;
+            border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: bold;
         }
-
-        .source-tag {
-            display: inline-block;
-            background: #1a1a1a;
-            color: #fff;
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-size: 13px;
-            margin-top: 15px;
-            font-weight: 600;
-        }
+        .tab-btn.active { background: #111; color: #fff; }
 
         /* --- 文章列表与卡片 --- */
-        .article-list { 
-            width: 100%; 
-        }
+        .article-list { width: 100%; display: block; }
 
+        /* 修复过宽问题：强制 Padding 向内挤压 */
         .article-card {
             background: #fff;
             border-radius: 12px;
-            padding: 30px; 
+            padding: 35px 30px; 
             margin-bottom: 25px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.03);
-            width: 100% !important; /* 必须 100%，它会受父级 container 800px 限制 */
-            box-sizing: border-box !important; /* 核心：让 padding 向内缩，防止撑宽 */
+            width: 100% !important; 
+            box-sizing: border-box !important; /* 核心修复属性 */
             border: 1px solid rgba(0,0,0,0.02);
         }
 
-        /* --- AI 总结内部的引用与文本 --- */
-        .summary-box {
-            border-left: 4px solid #e74c3c;
-            padding: 12px 20px;
-            margin: 20px 0;
-            background: #fff8f8;
-            border-radius: 0 8px 8px 0;
-        }
-
-        h2 { font-size: 20px; margin-top: 0; color: #111; }
-        h3 { font-size: 17px; color: #444; margin-bottom: 10px; }
-        p { margin: 10px 0; }
+        /* --- 内容排版优化 --- */
+        .article-card h2 { font-size: 22px; margin-top: 0; color: #111; line-height: 1.4; }
+        .article-card p { margin: 10px 0; color: #444; }
+        .article-card img { max-width: 100%; border-radius: 8px; margin: 10px 0; }
         
-        .author-meta { 
-            color: #777; 
-            font-size: 14px; 
-            border-bottom: 1px solid #eee; 
-            padding-bottom: 15px; 
-            margin-bottom: 20px; 
-        }
-
-        .original-link {
-            display: inline-block;
-            margin-top: 15px;
-            color: #3498db;
-            text-decoration: none;
-            font-size: 13px;
-        }
-        .original-link:hover { text-decoration: underline; }
-
-        /* 响应式微调 */
-        @media (max-width: 600px) {
-            .header { padding: 30px 15px; }
-            .article-card { padding: 20px; }
-        }
+        .loading { text-align: center; color: #888; padding: 40px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <!-- 头部区域 -->
+        <!-- 头部导航 -->
         <header class="header">
             <h1>📚 书评深度集萃</h1>
-            <div class="source-tag">泰晤士报文学增刊 (The TLS)</div>
-            <p style="color: #888; margin-top: 15px; font-size: 14px;">
-                2026年4月30日刊 · 全自动 AI 深度精读
+            <div class="tabs" id="feed-tabs">
+                <button class="tab-btn active" data-xml="tls_ai_enhanced.xml">TLS (泰晤士)</button>
+                <button class="tab-btn" data-xml="lrb_ai_enhanced.xml">LRB (伦敦)</button>
+                <button class="tab-btn" data-xml="nyrb_ai_enhanced.xml">NYRB (纽约)</button>
+            </div>
+            <p style="color: #888; margin-top: 15px; font-size: 14px;" id="status-text">
+                正在加载最新 AI 精读报告...
             </p>
         </header>
 
-        <!-- 文章列表区域 -->
-        <main class="article-list">
-            
-            <!-- 这里是一个演示卡片，你的 Python 脚本会将循环生成的卡片放在这里 -->
-            <article class="article-card">
-                <h2>【示例】论布莱希特：杂耍暴力与冷峻寓言</h2>
-                <div class="author-meta">✍️ 作者：约瑟夫 · 罗宾逊 | 🎯 对象：舞台剧《阿图罗 · 魏的崛起》</div>
-                <div class="summary-box">
-                    <strong>一句话破题：</strong>一场关于权力如何在闹剧阴影下登台的深刻警示。
-                </div>
-                <h3>📰 核心脉络</h3>
-                <p>这里是精读报告的正文内容。由于使用了 border-box 盒模型，无论正文多长，卡片的宽度都会死死锁定在 800px，绝不会比顶部的 Header 盒子宽。</p>
-                <a href="#" class="original-link">🔗 阅读原刊全文</a>
-            </article>
-
-            <!-- 更多的 <article class="article-card"> 将在此处动态插入 -->
-
+        <!-- 动态解析渲染区域 -->
+        <main class="article-list" id="content-area">
+            <div class="loading">解析 XML 库中...</div>
         </main>
     </div>
 
+    <script>
+        // 初始化时加载 TLS 的 XML
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFeed('tls_ai_enhanced.xml');
+            
+            // 绑定切换按钮点击事件
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    const xmlFile = e.target.getAttribute('data-xml');
+                    loadFeed(xmlFile);
+                });
+            });
+        });
+
+        // 核心：读取 GitHub 库里的 XML 文件并渲染
+        async function loadFeed(xmlFileName) {
+            const contentArea = document.getElementById('content-area');
+            const statusText = document.getElementById('status-text');
+            contentArea.innerHTML = '<div class="loading">正在获取 ' + xmlFileName + '...</div>';
+
+            try {
+                // 请求同一目录下的 XML 文件 (依赖你的 GitHub Pages 目录结构)
+                const response = await fetch(xmlFileName + '?t=' + new Date().getTime()); // 加时间戳防缓存
+                if (!response.ok) throw new Error('XML 文件未找到');
+                
+                const text = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(text, "text/xml");
+                
+                // 解析 RSS 格式的 <item> 标签
+                const items = xmlDoc.querySelectorAll("item");
+                statusText.innerText = `当前栏目共收录 ${items.length} 篇精读`;
+                contentArea.innerHTML = '';
+
+                if (items.length === 0) {
+                    contentArea.innerHTML = '<div class="loading">暂无数据。</div>';
+                    return;
+                }
+
+                // 循环生成文章卡片
+                items.forEach(item => {
+                    const title = item.querySelector("title") ? item.querySelector("title").textContent : "无标题";
+                    const link = item.querySelector("link") ? item.querySelector("link").textContent : "#";
+                    
+                    // 获取 AI 生成的摘要 (通常存放在 description 或 content:encoded 中)
+                    let description = "";
+                    const contentEncoded = item.querySelector("encoded"); // 处理 <content:encoded>
+                    const descNode = item.querySelector("description");
+                    
+                    if (contentEncoded) {
+                        description = contentEncoded.textContent;
+                    } else if (descNode) {
+                        description = descNode.textContent;
+                    }
+
+                    // 构造 HTML，由于上面写死了 .article-card 的 box-sizing，这里渲染出来宽度绝对一致
+                    const articleHTML = `
+                        <article class="article-card">
+                            <h2><a href="${link}" target="_blank" style="color: inherit; text-decoration: none;">${title}</a></h2>
+                            <div class="article-content">
+                                ${description}
+                            </div>
+                            <div style="margin-top: 20px;">
+                                <a href="${link}" target="_blank" style="color: #3498db; text-decoration: none; font-size: 14px;">🔗 阅读全文</a>
+                            </div>
+                        </article>
+                    `;
+                    contentArea.innerHTML += articleHTML;
+                });
+
+            } catch (error) {
+                console.error("加载 XML 失败:", error);
+                contentArea.innerHTML = `<div class="loading" style="color: red;">获取内容失败。请确认 ${xmlFileName} 已成功推送到 GitHub 且路径正确。</div>`;
+            }
+        }
+    </script>
 </body>
 </html>
