@@ -1,62 +1,61 @@
 import requests
-import re
+from bs4 import BeautifulSoup
 
-def cloud_test_sitemap_extraction():
-    print("🚀 启动 TLS 云端环境专项测试 (Sitemap 暴力渗透版)...")
+def cloud_test_current_issue_extraction():
+    print("🚀 启动 TLS 云端环境专项测试 (按期刊目录精准版)...")
     
-    # 🎯 目标：锁定你之前日志中出现过的 25、26 号文章分片
-    # 2026年4月/5月的文章极大概率就在这两个分片中
-    sitemap_urls = [
-        "https://www.the-tls.com/tls_articles-sitemap26.xml",
-        "https://www.the-tls.com/tls_articles-sitemap25.xml"
-    ]
+    # 🎯 目标：锁定最新一期目录页
+    target_url = "https://www.the-tls.com/issues/current-issue/" 
+    jina_url = f"https://r.jina.ai/{target_url}"
     
+    # 🚀 配置：要求 Jina 返回 HTML，并强制等待目录元素渲染
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0",
-        "Accept": "text/plain" # 💡 关键：只要求返回纯文本，不渲染
+        "Accept": "text/html",
+        "X-No-Cache": "true",
+        "X-Return-Format": "html",
+        "X-Wait-For-Selector": ".tls-card-headline" 
     }
     
-    all_found_urls = []
-
-    for target in sitemap_urls:
-        print(f"\n📡 正在渗透分片: {target}")
-        # 通过 Jina 仅仅作为代理读取 XML 文本
-        jina_proxy_url = f"https://r.jina.ai/{target}"
+    print(f"📡 正在通过 Jina 调取渲染后的目录页: {target_url}")
+    try:
+        # 设置 60 秒超时，因为云端渲染 JS 比较耗时
+        response = requests.get(jina_url, headers=headers, timeout=60)
+        response.raise_for_status()
         
-        try:
-            response = requests.get(jina_proxy_url, headers=headers, timeout=40)
-            response.raise_for_status()
+        # 使用 BeautifulSoup 解析
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # 🕵️ 精准定位：只寻找 class 包含 tls-card-headline 的链接
+        # 这就是你提供的源码中文章标题的特征
+        article_links = soup.find_all('a', class_=lambda c: c and 'tls-card-headline' in c)
+        
+        urls = []
+        for a in article_links:
+            href = a.get('href', '')
+            if href.startswith('/'):
+                href = "https://www.the-tls.com" + href
             
-            # 🔪 核心杀招：直接用正则从 XML 文本中抠出文章链接
-            # 匹配 https://www.the-tls.com/ 后面跟着一系列字母数字和斜杠的字符串
-            matches = re.findall(r'https://www.the-tls.com/[a-zA-Z0-9\-\/]+', response.text)
-            
-            # 去重
-            matches = list(dict.fromkeys(matches))
-            
-            # 过滤掉非文章链接
-            filtered = []
-            for href in matches:
-                if len(href.split('/')) > 4:
-                    if any(x in href for x in ['/issues/', '/categor', '/author', '/tag', '/topics/', 'wp-content']):
-                        continue
-                    filtered.append(href)
-            
-            print(f"✅ 成功从该分片提取到 {len(filtered)} 个链接！")
-            all_found_urls.extend(filtered)
-            
-        except Exception as e:
-            print(f"❌ 渗透失败: {e}")
+            # 过滤掉分类、话题等干扰链接
+            if "the-tls.com" in href and len(href.split('/')) > 4:
+                if any(x in href for x in ['/issues/', '/category/', '/author/', '/tag/', '/topics/']):
+                    continue
+                if href not in urls:
+                    urls.append(href)
 
-    # 展示结果
-    print("\n" + "="*60)
-    print(f"📊 总计抓取到 {len(all_found_urls)} 篇唯一文章链接。")
-    print("="*60)
-    
-    # 打印前 50 篇供核对
-    for i, url in enumerate(all_found_urls[:50], 1):
-        print(f"{i:02d}. {url}")
-    print("="*60)
+        # 📊 输出结果
+        print("\n" + "="*60)
+        print(f"🎯 目录解析完毕！在本期中精准锁定 {len(urls)} 篇文章。")
+        print("="*60)
+        
+        if len(urls) > 0:
+            for i, url in enumerate(urls, 1):
+                print(f"{i:02d}. {url}")
+        else:
+            print("❌ 依然抓到 0 篇。这说明 Jina 在云端被 TLS 防火墙挡住了 JS 渲染。")
+        print("="*60)
+
+    except Exception as e:
+        print(f"❌ 云端测试发生致命错误: {e}")
 
 if __name__ == "__main__":
-    cloud_test_sitemap_extraction()
+    cloud_test_current_issue_extraction()
