@@ -1,79 +1,67 @@
 import os
 import requests
-from bs4 import BeautifulSoup
 from openai import OpenAI
-import cloudscraper # 🚀 引入破壁神器
 
 # ==========================================
 # 0. 炼丹炉配置 (云端环境)
 # ==========================================
-# GitHub Actions 会自动注入这个环境变量
 api_key = os.getenv("DEEPSEEK_API_KEY", "").strip(" '\"\n\r\t")
 
-# 初始化 OpenAI 客户端
 try:
     client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 except Exception as e:
     print(f"❌ 初始化 DeepSeek 客户端失败: {e}")
     exit(1)
 
-# 【重要】：每次测试前，请在这里换上你想测试的 TLS 文章链接
+# 测试链接（你刚才的链接）
 TEST_URL = "https://www.the-tls.com/arts/visual-arts/tracey-emin-second-life-tate-modern-london-review-sophie-oliver"
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Referer": "https://www.google.com/"
-}
-
 # ==========================================
-# ==========================================
-# 1. 探针：使用 CloudScraper 潜入 TLS
+# 1. 探针：祭出 Jina Reader 空间传送门
 # ==========================================
 def scrape_tls_article(url):
-    print(f"🕵️ 正在潜入 TLS 抓取文章 (启动 CloudScraper 伪装): {url}")
+    print(f"🕵️ 启动终极武器：Jina Reader 代理抓取 -> {url}")
     try:
-        # 🚀 实例化破壁机，伪装成最新的 Windows Chrome 浏览器
-        scraper = cloudscraper.create_scraper(
-            browser={
-                'browser': 'chrome',
-                'platform': 'windows',
-                'desktop': True
-            }
-        )
+        # 🚀 魔法就在这里：只需要在原链接前面加上 https://r.jina.ai/
+        jina_url = f"https://r.jina.ai/{url}"
         
-        # 使用 scraper 替代原先的 requests
-        response = scraper.get(url, timeout=20)
+        headers = {
+            # 告诉 Jina，我们不要 HTML，请直接给我干净的 Markdown
+            "Accept": "text/markdown", 
+            # 绕过缓存，强制获取最新
+            "X-No-Cache": "true" 
+        }
+        
+        # 把超时时间设长一点，因为云端浏览器渲染需要时间
+        response = requests.get(jina_url, headers=headers, timeout=30)
         response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 获取标题
-        title_tag = soup.find('h1')
-        title = title_tag.text.strip() if title_tag else "未获取标题"
+        text = response.text
         
-        # TLS 的正文通常藏在特定的段落类名中，或者直接抓 <p>
-        paragraphs = soup.find_all('p')
-        text_blocks = [p.get_text(separator=' ', strip=True) for p in paragraphs]
-        text = "\n".join([t for t in text_blocks if len(t) > 30])
-        
+        # 尝试从 Markdown 中提取标题（Jina 通常会把标题设为一级标题 #）
+        title = "TLS 深度长文"
+        first_line = text.split('\n')[0]
+        if first_line.startswith('Title: '):
+            title = first_line.replace('Title: ', '').strip()
+        elif first_line.startswith('# '):
+            title = first_line.replace('# ', '').strip()
+
         print("\n" + "="*50)
-        print(f"📊 【云端抓取报告】")
+        print(f"📊 【终极武器抓取报告】")
         print(f"网页返回状态码: {response.status_code}")
-        print(f"英文原标题: {title}")
+        print(f"推测原标题: {title}")
         print(f"抓取到的总字符数: {len(text)} 字符")
         print("="*50 + "\n")
         
-        # 拦截刚才那个好笑的“真人验证”警告
-        if "Help us verify real visitors" in title or "potentially automated" in text:
-            print("🚨 警报：CloudScraper 伪装失效，依然被 TLS 防火墙拦截！")
-            return None
-            
+        # 拦截判断
         if len(text) < 1500:
-            print("⚠️ 警告：可能撞上了付费墙（Paywall）！下面是抓取到的部分原文：\n")
-            print(text[:500] + "......\n")
+            print("⚠️ 警告：字数过少，可能撞上了真·付费墙（Paywall）！\n")
+            print("部分原文：\n" + text[:500] + "......\n")
+            if "Subscribe" in text or "Log in" in text:
+                print("🚨 确认撞上 TLS 商业付费墙！无法读取后半部分。")
         else:
-            print("✅ 成功突破防火墙！下面是部分原文展示：\n")
-            print(text[:500] + "......\n")
+            print("✅ 成功击穿所有防御机制！下面是极其纯净的 Markdown 原文：\n")
+            print(text[:500] + "\n......(此处省略数千字)......\n")
             
         return {"title": title, "url": url, "text": text}
         
@@ -82,16 +70,15 @@ def scrape_tls_article(url):
         return None
 
 # ==========================================
-# 2. 炼丹：AI 浓缩提取测试
+# 2. 炼丹：AI 浓缩提取测试 (保持不变)
 # ==========================================
 def test_ai_prompt(article_data):
-    if not article_data or len(article_data["text"]) < 100:
-        print("❌ 文本太短，无法进行 AI 炼丹。")
+    if not article_data or len(article_data["text"]) < 500:
+        print("❌ 文本太短或被墙，无法进行 AI 炼丹。")
         return
         
     text = article_data["text"][:80000] 
     
-    # 🚀 针对 TLS 特制的【超浓缩版】提示词
     system_prompt = """你是一位为时间宝贵的精英读者写作的资深主笔。请基于提供的文章撰写精读报告。
 【最高指令】：本文篇幅较短，总字数必须极其严苛地控制在 400-600 字左右！语言必须极度凝练、犀利。严禁以“想象一下”等呆板词汇开头。
 
@@ -101,7 +88,7 @@ def test_ai_prompt(article_data):
 直接写出英文标题的精准且具有吸引力的中文翻译
 
 【作者与对象】
-格式必须为：“✍️ 作者：[文章作者名] ｜ 🎯 探讨对象：[评论的具体书名/对象]”
+格式必须为：“✍️ 作者：[文章作者名] ｜ 🎯 探讨对象：[评论的具体书名/展览/事件]”
 
 【一句话破题】
 用一句极具张力的话（不超过40字），直接点破文章核心。
@@ -111,7 +98,7 @@ def test_ai_prompt(article_data):
 （150-200字）极其简练地梳理文章逻辑，只保留最核心的冲突或观点。
 
 ### 🧠 独立点评
-（约100字）简明扼要地指出文章在思想史或学术界的价值。
+（约100字）简明扼要地指出文章在思想史或艺术界的价值。
 
 ### 📚 延伸矩阵
 （严禁伪造！只需推荐 1-2 本核心相关或不同观点的真实著作，每本一句话介绍）"""
@@ -133,6 +120,6 @@ def test_ai_prompt(article_data):
         print(f"❌ AI 请求失败: {e}")
 
 if __name__ == "__main__":
-    print("🚀 启动 GitHub 云端炼丹炉...")
+    print("🚀 启动 GitHub 云端炼丹炉 (究极降维版)...")
     data = scrape_tls_article(TEST_URL)
     test_ai_prompt(data)
