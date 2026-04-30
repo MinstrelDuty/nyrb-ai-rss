@@ -51,80 +51,70 @@ def get_existing_items():
             
     return existing_urls, existing_items_xml
 
-def get_latest_article_urls(existing_urls, max_items=60):
-    """【全量扫描版】扫描所有可能的文章地图分片，彻底杜绝遗漏"""
+def get_latest_article_urls(existing_urls, max_items=80):
+    """【终极健壮自适应版】对齐测试脚本成功逻辑，实现云端全自动"""
     import re
     import requests
+    from datetime import datetime, timedelta
+
+    # 1. 扫描最近的两个分片（确保跨周更新不遗漏）
+    target_shards = ["26", "25"]
+    headers = {"Accept": "text/plain", "X-No-Cache": "true"}
     
-    print("🕵️ 启动全量扫描：正在解析所有相关的 XML 数据库分片...")
-    urls = []
+    # 2. 动态时间窗口：只看最近 8 天
+    time_threshold = datetime.now() - timedelta(days=8)
     
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0",
-        "Accept": "text/xml,application/xml"
-    }
+    # 3. 严苛黑名单：排除掉所有非正文页面
+    BLACK_LIST = [
+        '/author/', '/tag/', '/topics/', '/category/', 
+        '/issues/', '/feed/', 'wp-json', 'wp-content',
+        '/crossword-quiz/', '/letters-to-the-editor/', '/highlights/'
+    ]
     
-    try:
-        # 1. 抓取根地图
-        index_url = "https://www.the-tls.com/sitemap_index.xml"
-        response = requests.get(index_url, headers=headers, timeout=20)
-        
-        if response.status_code != 200:
-            print("⚠️ 根目录受阻，呼叫 Jina 强行吸取索引...")
-            response = requests.get(f"https://r.jina.ai/{index_url}", headers={"Accept": "text/plain"}, timeout=30)
+    found_articles = []
+    print(f"🔄 正在启动终极自适应扫描... 目标窗口: {time_threshold.strftime('%Y-%m-%d')} 至今")
+
+    for num in target_shards:
+        url = f"https://www.the-tls.com/tls_articles-sitemap{num}.xml"
+        try:
+            # 调用 Jina 获取纯文本
+            resp = requests.get(f"https://r.jina.ai/{url}", headers=headers, timeout=40)
+            text = resp.text
             
-        # 2. 找出所有相关的子地图链接
-        # 筛选出可能含有文章的地图：包含 article, post, issue 且不含 topic, tag, category, author
-        all_sub_maps = re.findall(r'<loc>(https://www.the-tls.com/[a-zA-Z0-9\-_]*sitemap[a-zA-Z0-9\-_]*\.xml)</loc>', response.text)
-        candidate_maps = [
-            m for m in all_sub_maps 
-            if any(k in m for k in ['article', 'post', 'issue']) 
-            and not any(x in m for x in ['topic', 'tag', 'category', 'author', 'visibility'])
-        ]
-        
-        # 3. 倒序扫描（从最新的地图开始找）
-        candidate_maps.reverse()
-        print(f"📂 发现 {len(candidate_maps)} 个潜在的文章数据库分片，开始深度扫描...")
-        
-        for sitemap_url in candidate_maps:
-            if len(urls) >= max_items:
-                break
+            # 💡 核心：健壮模糊匹配 (URL + 后面跟着的日期)
+            # 这种写法免疫 XML 标签被 Jina 转换成 Markdown 的情况
+            matches = re.findall(r'(https://www.the-tls.com/[^\s<"\'\)]+).*?(\d{4}-\d{2}-\d{2})', text, re.DOTALL)
+            
+            for link, lastmod in matches:
+                # 去除 Jina 可能带上的 Markdown 尾巴 (如 ](url )
+                clean_link = link.split(']')[0].split(')')[0]
                 
-            print(f"🔍 正在扫描分片: {sitemap_url}")
-            try:
-                r = requests.get(sitemap_url, headers=headers, timeout=15)
-                if r.status_code != 200:
-                    r = requests.get(f"https://r.jina.ai/{sitemap_url}", headers={"Accept": "text/plain"}, timeout=20)
+                # 校验：路径层级 > 4
+                if len(clean_link.split('/')) <= 4:
+                    continue
                 
-                # 暴力提取该分片中的所有长链接
-                batch_links = re.findall(r'https://www.the-tls.com/[a-zA-Z0-9\-\/]+', r.text)
-                batch_links = list(dict.fromkeys(batch_links))
-                batch_links.reverse() # 保持最新优先
-                
-                for href in batch_links:
-                    # 路径深度过滤（文章链接通常层级较深）
-                    if len(href.split('/')) > 4:
-                        # 排除非文章路径
-                        if any(x in href for x in ['/issues/', '/categor', '/author', '/tag', '/about', '/buy', '/login', '/subscribe', '/my-account', '/letters', 'wp-content', '.xml', '/topics/']):
-                            continue
-                            
-                        if href not in existing_urls and href not in urls:
-                            urls.append(href)
-                            if len(urls) >= max_items:
-                                break
-                
-                print(f"   📈 目前已累计获取 {len(urls)} 篇唯一文章...")
-                
-            except Exception as e:
-                print(f"   ⚠️ 扫描分片 {sitemap_url} 出错，跳过: {e}")
-                continue
-                
-        print(f"✅ 扫描结束！共从底层数据库提取到 {len(urls)} 篇纯正长文。")
-        return urls
-        
-    except Exception as e:
-        print(f"❌ 全量扫描行动失败: {e}")
-        return []
+                # 校验：不在黑名单
+                if any(bad in clean_link for bad in BLACK_LIST):
+                    continue
+
+                # 校验：时间窗口
+                try:
+                    mod_date = datetime.strptime(lastmod, '%Y-%m-%d')
+                    if mod_date >= time_threshold:
+                        # 校验：是否已存在于数据库
+                        if clean_link not in existing_urls and clean_link not in found_articles:
+                            found_articles.append(clean_link)
+                except:
+                    continue
+        except Exception as e:
+            print(f"⚠️ 分片 {num} 扫描中断: {e}")
+
+    # 4. 排序：最新发布的排在最前
+    # 注意：Sitemap 通常按时间正序，我们取回后 reverse 一下
+    found_articles.reverse()
+    
+    print(f"✅ 扫描完成：本期共精准锁定 {len(found_articles)} 篇待处理新文章。")
+    return found_articles[:max_items]
 # ==========================================
 # 2. 核心引擎：Jina 空间传送门与 AI 提炼
 # ==========================================
