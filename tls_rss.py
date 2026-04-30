@@ -60,11 +60,12 @@ def get_latest_article_urls(existing_urls, max_items=60):
     
     print(f"🕵️ 启动终极武器：召唤 Jina 在云端执行 JavaScript 渲染目录 -> {target_url}")
     try:
-        # 🚀 魔法指令：告诉 Jina，我们不要 Markdown！请给我执行完 JS 后的完整 HTML！
+       # 🚀 魔法指令：拿枪指着 Jina，不看到 tls-card-headline 出现，绝不许返回！
         headers = {
             "Accept": "text/html",
             "X-No-Cache": "true",
-            "X-Return-Format": "html" 
+            "X-Return-Format": "html",
+            "X-Wait-For-Selector": ".tls-card-headline"  # 🌟 就是这句极其关键的死命令！
         }
         
         response = requests.get(jina_url, headers=headers, timeout=40)
