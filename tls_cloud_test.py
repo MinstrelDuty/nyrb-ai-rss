@@ -1,60 +1,50 @@
 import requests
 import re
-from datetime import datetime, timedelta
 
-def cloud_test_dynamic_full_auto():
-    print("🚀 启动 TLS 终极全自动测试 (动态分片扫描)...")
+def cloud_test_final_diagnostic():
+    print("🚀 启动 TLS 极致容错测试 (全匹配模式)...")
     
-    # 1. 先抓索引页，找到当前最大的分片编号
-    index_url = "https://www.the-tls.com/sitemap_index.xml"
+    # 既然 25/24 没东西，我们扩大范围，强制扫描 25 和 26
+    # 因为 2026 年的文章大概率就在这两个分片
+    target_shards = ["26", "25"]
+    
     headers = {"Accept": "text/plain", "X-No-Cache": "true"}
+    CATEGORY_KEYWORDS = ['/arts/', '/history/', '/literature/', '/politics-society/', '/lives/', '/philosophy/']
     
-    try:
-        print("📡 正在检索最新数据库索引...")
-        index_resp = requests.get(f"https://r.jina.ai/{index_url}", headers=headers, timeout=30)
-        # 找出所有 tls_articles-sitemapXX.xml
-        all_shards = re.findall(r'tls_articles-sitemap(\d+)\.xml', index_resp.text)
-        if not all_shards:
-            print("❌ 未能获取分片列表，尝试手动降级扫描...")
-            target_shards = ["26", "25"]
-        else:
-            # 取最大的两个分片，确保覆盖跨周更新
-            latest_shard = max(map(int, all_shards))
-            target_shards = [str(latest_shard), str(latest_shard - 1)]
-        
-        print(f"📂 锁定最新分片: {target_shards}")
+    all_found_urls = []
 
-        # 2. 扫描选定的分片
-        CATEGORY_WHITELIST = ['/arts/', '/history/', '/literature/', '/politics-society/', '/lives/', '/philosophy/', '/science-technology/']
-        final_articles = []
-        
-        for shard_num in target_shards:
-            shard_url = f"https://www.the-tls.com/tls_articles-sitemap{shard_num}.xml"
-            print(f"🔍 正在渗透分片 {shard_num}...")
-            resp = requests.get(f"https://r.jina.ai/{shard_url}", headers=headers, timeout=30)
+    for num in target_shards:
+        url = f"https://www.the-tls.com/tls_articles-sitemap{num}.xml"
+        print(f"📡 正在探测分片 {num}: {url}")
+        try:
+            resp = requests.get(f"https://r.jina.ai/{url}", headers=headers, timeout=40)
             
-            # 暴力提取所有符合分类且路径够深的链接
-            links = re.findall(r'<loc>(https://www.the-tls.com/[a-zA-Z0-9\-\/]+)</loc>', resp.text)
+            # 🧪 诊断：先看看有没有拿到任何链接
+            # 不管是不是文章，只要是 https 链接都先抓出来
+            raw_links = re.findall(r'https://[a-zA-Z0-9\.\-\/_]+', resp.text)
+            print(f"   📊 原始文本发现 {len(raw_links)} 个潜在链接。")
             
-            for l in links:
-                if any(cat in l for cat in CATEGORY_WHITELIST) and len(l.split('/')) > 4:
-                    if not any(x in l for x in ['/author/', '/tag/', '/topics/']):
-                        if l not in final_articles:
-                            final_articles.append(l)
+            for link in raw_links:
+                # 排除 XML 自身标签干扰
+                if '.xml' in link or 'sitemaps.org' in link:
+                    continue
+                
+                # 核心逻辑：包含 tls 且 命中分类关键词
+                if "the-tls.com" in link and any(cat in link for cat in CATEGORY_KEYWORDS):
+                    if link not in all_found_urls:
+                        all_found_urls.append(link)
+                        
+        except Exception as e:
+            print(f"   ❌ 分片 {num} 请求失败: {e}")
 
-        # 3. 结果展示（模拟最新一期）
-        # 我们不设时间门禁，直接取最新的 50 篇
-        print("\n" + "="*60)
-        print(f"✅ 扫描完毕！从最新数据库中提取到 {len(final_articles)} 篇候选文章。")
-        print("="*60)
-        
-        # 这里的 reverse 是因为 Sitemap 通常旧的在前，新的在后
-        final_articles.reverse()
-        for i, url in enumerate(final_articles[:55], 1):
-            print(f"{i:02d}. {url}")
-            
-    except Exception as e:
-        print(f"❌ 运行异常: {e}")
+    print("\n" + "="*60)
+    print(f"🎯 最终过滤战果：{len(all_found_urls)} 篇分类文章")
+    print("="*60)
+    
+    # 倒序显示（通常最新的在 XML 底部，所以 reverse）
+    all_found_urls.reverse()
+    for i, l in enumerate(all_found_urls[:55], 1):
+        print(f"{i:02d}. {l}")
 
 if __name__ == "__main__":
-    cloud_test_dynamic_full_auto()
+    cloud_test_final_diagnostic()
