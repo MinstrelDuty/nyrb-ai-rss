@@ -1,61 +1,67 @@
 import requests
 from bs4 import BeautifulSoup
 
-def cloud_test_current_issue_extraction():
-    print("🚀 启动 TLS 云端环境专项测试 (按期刊目录精准版)...")
+def cloud_test_rss_extraction():
+    print("🚀 启动 TLS 云端环境专项测试 (全自动 RSS 订阅源版)...")
     
-    # 🎯 目标：锁定最新一期目录页
-    target_url = "https://www.the-tls.com/issues/current-issue/" 
-    jina_url = f"https://r.jina.ai/{target_url}"
+    # 🎯 目标：TLS 官方 RSS
+    rss_url = "https://www.the-tls.com/feed"
     
-    # 🚀 配置：要求 Jina 返回 HTML，并强制等待目录元素渲染
     headers = {
-        "Accept": "text/html",
-        "X-No-Cache": "true",
-        "X-Return-Format": "html",
-        "X-Wait-For-Selector": ".tls-card-headline" 
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "text/xml"
     }
     
-    print(f"📡 正在通过 Jina 调取渲染后的目录页: {target_url}")
+    print(f"📡 正在尝试读取 RSS 订阅源: {rss_url}")
+    
     try:
-        # 设置 60 秒超时，因为云端渲染 JS 比较耗时
-        response = requests.get(jina_url, headers=headers, timeout=60)
-        response.raise_for_status()
+        # 第一步：尝试直接请求
+        print("尝试 1: 直连 RSS 源...")
+        response = requests.get(rss_url, headers=headers, timeout=20)
         
-        # 使用 BeautifulSoup 解析
+        # 第二步：如果直连失败（比如返回 403 或 404），改用 Jina 代理
+        if response.status_code != 200 or not response.text.strip():
+            print(f"⚠️ 直连失败 (状态码: {response.status_code})，尝试通过 Jina 代理读取...")
+            jina_url = f"https://r.jina.ai/{rss_url}"
+            # 💡 强制使用纯文本模式，绕过 JS 渲染
+            response = requests.get(jina_url, headers={"Accept": "text/plain"}, timeout=30)
+        
+        # 解析 XML
+        # 注意：这里我们使用 'html.parser' 或 'xml' (如果安装了 lxml) 
+        # 为了兼容性，先用 'html.parser' 演示
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 🕵️ 精准定位：只寻找 class 包含 tls-card-headline 的链接
-        # 这就是你提供的源码中文章标题的特征
-        article_links = soup.find_all('a', class_=lambda c: c and 'tls-card-headline' in c)
+        # RSS 规范中链接通常在 <link> 标签内，嵌套在 <item> 中
+        items = soup.find_all('item')
         
         urls = []
-        for a in article_links:
-            href = a.get('href', '')
-            if href.startswith('/'):
-                href = "https://www.the-tls.com" + href
+        for item in items:
+            # 提取 link 标签的内容
+            link = item.find('link').next_sibling.strip() if item.find('link') else ""
+            if not link:
+                # 有些 RSS 格式 link 标签直接包含文本
+                link = item.link.text if item.link else ""
             
-            # 过滤掉分类、话题等干扰链接
-            if "the-tls.com" in href and len(href.split('/')) > 4:
-                if any(x in href for x in ['/issues/', '/category/', '/author/', '/tag/', '/topics/']):
+            if link and "the-tls.com" in link:
+                # 基础过滤：排除掉非文章的链接
+                if any(x in link for x in ['/issues/', '/category/', '/author/', '/tag/', '/topics/']):
                     continue
-                if href not in urls:
-                    urls.append(href)
+                if link not in urls:
+                    urls.append(link)
 
-        # 📊 输出结果
         print("\n" + "="*60)
-        print(f"🎯 目录解析完毕！在本期中精准锁定 {len(urls)} 篇文章。")
+        print(f"✅ RSS 测试完毕！自动发现 {len(urls)} 篇最新文章链接。")
         print("="*60)
         
-        if len(urls) > 0:
-            for i, url in enumerate(urls, 1):
+        if urls:
+            for i, url in enumerate(urls[:50], 1): # 展示前 50 篇
                 print(f"{i:02d}. {url}")
         else:
-            print("❌ 依然抓到 0 篇。这说明 Jina 在云端被 TLS 防火墙挡住了 JS 渲染。")
+            print("❌ 警告：虽然读取了数据，但未发现有效文章链接。可能是解析规则需微调。")
         print("="*60)
 
     except Exception as e:
-        print(f"❌ 云端测试发生致命错误: {e}")
+        print(f"❌ 云端测试发生异常: {e}")
 
 if __name__ == "__main__":
-    cloud_test_current_issue_extraction()
+    cloud_test_rss_extraction()
