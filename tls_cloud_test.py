@@ -1,48 +1,56 @@
 import requests
 import re
 
-def cloud_test_final_bomb():
-    print("🚀 启动 TLS 终极渗透测试 (高级浏览器指纹模拟)...")
+def cloud_test_final_victory():
+    print("🚀 启动 TLS 终极渗透测试 (强制等待 JS 渲染版)...")
     
-    # 回归目录页，因为这是你“按期抓取”的唯一源头
     target_url = "https://www.the-tls.com/issues/current-issue/"
     jina_url = f"https://r.jina.ai/{target_url}"
     
-    # 🛰️ 这里的 headers 是关键：模拟极高真实度的请求
     headers = {
         "Accept": "text/html",
         "X-No-Cache": "true",
         "X-Return-Format": "html",
-        "X-Wait-For-Selector": ".tls-card-headline", # 必须等到标题加载
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1" # 模拟手机 Safari，防御通常较弱
+        # 🎯 核心：强制 Jina 等待这个特定的 class 出现，最多等 20 秒
+        "X-Wait-For-Selector": ".tls-card-headline", 
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
     }
     
-    print(f"📡 正在尝试击穿 CloudFront 防御层: {target_url}")
+    print(f"📡 正在等待 JS 渲染并解析目录: {target_url}")
     
     try:
-        # 设置更长的超时，等待 Jina 模拟指纹
-        response = requests.get(jina_url, headers=headers, timeout=60)
+        # 增加超时到 90 秒，给 JS 渲染留足时间
+        response = requests.get(jina_url, headers=headers, timeout=90)
         
-        # 看看这次返回的是 403 还是真正的 HTML
-        if "403 ERROR" in response.text or "Request blocked" in response.text:
-            print("❌ 依然被 403 拦截。云端 IP 已被封锁。")
-            return
-            
-        print(f"📄 数据预览: {response.text[:300]}...")
+        # 检查是否包含核心 class
+        if "tls-card-headline" not in response.text:
+            print("⚠️ 警告：虽然击穿了防火墙，但 JS 渲染似乎未产生文章内容。")
+            print(f"数据长度: {len(response.text)} 字符")
+            # 看看返回的到底是啥，有没有可能是数据结构变了
         
-        # 提取链接
+        # 提取链接：我们只提取带有具体路径的文章链接
         links = re.findall(r'https://www.the-tls.com/[a-zA-Z0-9\-\/]+', response.text)
+        
         urls = []
         for l in list(dict.fromkeys(links)):
-            if len(l.split('/')) > 4 and not any(x in l for x in ['/issues/', '/category/', '/author/', '/tag/', '/topics/']):
-                urls.append(l)
+            # 文章链接特征：层级深，且不含 wp-json, content 等开发路径
+            if len(l.split('/')) > 4:
+                if not any(x in l for x in ['/issues/', '/category/', '/author/', '/tag/', '/topics/', 'wp-', 'feed', 'oembed']):
+                    urls.append(l)
 
-        print(f"\n✅ 击穿成功！锁定 {len(urls)} 篇文章链接。")
-        for i, url in enumerate(urls[:50], 1):
-            print(f"{i:02d}. {url}")
+        print("\n" + "="*60)
+        print(f"✅ 最终战果：在云端成功锁定 {len(urls)} 篇文章链接！")
+        print("="*60)
+        
+        if urls:
+            for i, url in enumerate(urls[:60], 1):
+                print(f"{i:02d}. {url}")
+        else:
+            print("❌ 解析失败：HTML 中未发现符合正则的文章链接。")
+        print("="*60)
 
     except Exception as e:
-        print(f"❌ 测试异常: {e}")
+        print(f"❌ 运行异常: {e}")
 
 if __name__ == "__main__":
-    cloud_test_final_bomb()
+    cloud_test_final_victory()
