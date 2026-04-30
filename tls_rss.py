@@ -51,43 +51,46 @@ def get_existing_items():
             
     return existing_urls, existing_items_xml
 
-def get_latest_article_urls(existing_urls, max_items=70):
-    """使用 Jina Reader 强行突破 TLS 目录页抓取链接"""
+def get_latest_article_urls(existing_urls, max_items=60):
+    """【完全体】使用 Jina 执行 JS 获取渲染后的 HTML，并精准狙击文章链接"""
     
     target_url = "https://www.the-tls.com/issues/current-issue/" 
     jina_url = f"https://r.jina.ai/{target_url}"
     urls = []
     
-    print(f"🕵️ 启动终极武器：使用 Jina 传送门强行解析目录 -> {target_url}")
+    print(f"🕵️ 启动终极武器：召唤 Jina 在云端执行 JavaScript 渲染目录 -> {target_url}")
     try:
+        # 🚀 魔法指令：告诉 Jina，我们不要 Markdown！请给我执行完 JS 后的完整 HTML！
         headers = {
-            "Accept": "text/markdown",
-            "X-No-Cache": "true"
+            "Accept": "text/html",
+            "X-No-Cache": "true",
+            "X-Return-Format": "html" 
         }
         
-        # 召唤 Jina 突破目录页的防火墙
-        response = requests.get(jina_url, headers=headers, timeout=30)
+        response = requests.get(jina_url, headers=headers, timeout=40)
         response.raise_for_status()
-        text = response.text
+        html_content = response.text
         
-        # 🔪 核心逻辑：使用正则表达式从 Jina 返回的 Markdown 中提取所有链接
-        # Markdown 链接格式通常是 [文本](链接)
-        import re
-        link_pattern = re.compile(r'\[.*?\]\((https?://.*?|/.*?)\)')
-        matches = link_pattern.findall(text)
+        # 将 Jina 传回来的完整 HTML 交给 BeautifulSoup
+        soup = BeautifulSoup(html_content, 'html.parser')
+        print("🕵️ 正在扫描云端渲染后的 HTML，寻找 tls-card-headline 元素...")
         
-        for href in matches:
-            # 还原相对路径
+        # 🎯 精准狙击：直接提取包含这个 class 的 a 标签
+        article_tags = soup.find_all('a', class_=lambda c: c and 'tls-card-headline' in c)
+        
+        for a_tag in article_tags:
+            href = a_tag.get('href')
+            if not href:
+                continue
+                
+            # 补全相对路径
             if href.startswith('/'):
                 href = "https://www.the-tls.com" + href
                 
-            # 清理链接末尾可能带有的多余字符（如括号、引号）
-            href = href.strip(")'\"")
-                
-            # 严格过滤：只要 the-tls.com 的正文长链接
+            # 基础安全过滤
             if href.startswith('https://www.the-tls.com/') and len(href.split('/')) > 4:
-                # 排除各种干扰页
-                if any(x in href for x in ['/issues/', '/category/', '/author/', '/tag/', '/about/', '/buy', '/login', '/subscribe', '/my-account/', '/letters/']):
+                # 哪怕是指挥所提取出来的，我们也再加一层双保险，排除可能混入的非文章链接
+                if any(x in href for x in ['/issues/', '/categor', '/author', '/tag', '/about', '/buy', '/login', '/subscribe', '/my-account', '/letters', '.jpg', '.png']):
                     continue
                     
                 if href not in existing_urls and href not in urls:
@@ -95,17 +98,15 @@ def get_latest_article_urls(existing_urls, max_items=70):
                     if len(urls) >= max_items:
                         break
         
-        print(f"🎯 传送门侦测完毕！从 Jina 破壁目录页成功锁定 {len(urls)} 篇全新文章。")
+        print(f"🎯 云端狙击完毕！成功锁定 {len(urls)} 篇纯净文章。")
         
-        # 终极排错预警
         if len(urls) == 0:
-            print("⚠️ 警告：目录破壁后依然检测到 0 篇文章。打印部分 Jina 抓取结果供诊断：\n")
-            print(text[:800])
+            print("⚠️ 警告：虽然拿到了 HTML，但一篇文章都没找到。可能云端 JS 渲染超时。")
             
         return urls
         
     except Exception as e:
-        print(f"❌ Jina 抓取目录失败: {e}")
+        print(f"❌ 终极目录抓取失败: {e}")
         return []
 # ==========================================
 # 2. 核心引擎：Jina 空间传送门与 AI 提炼
