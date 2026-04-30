@@ -26,7 +26,7 @@ jobs:
       - name: Run TLS AI Update Script
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: python tls_rss.py
+        run: python -u tls_rss.py  # 🚀 加上 -u，强制实时输出日志！
 
       - name: Commit and Push
         run: |
