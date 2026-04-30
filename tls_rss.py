@@ -52,57 +52,65 @@ def get_existing_items():
     return existing_urls, existing_items_xml
 
 def get_latest_article_urls(existing_urls, max_items=60):
-    """【Plan B 降维偷家】直接读取 WordPress SEO 网站地图 (Sitemap)"""
+    """【Plan B 终极进化】顺藤摸瓜，智能解析 Yoast Sitemap 根目录"""
     import re
     import requests
     
-    print("🕵️ 启动 Plan B：放弃强攻前端页面，绕道后门读取 XML 网站地图...")
+    print("🕵️ 启动 Plan B：直捣 Yoast SEO 网站地图总根目录...")
     urls = []
     
-    # 伪装成 Google 爬虫 (Cloudflare 通常对 Googlebot 抓取 Sitemap 是一路绿灯的)
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-        "Accept": "text/xml"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0",
+        "Accept": "text/xml,application/xml"
     }
     
     try:
-        # TLS 既然用了 Yoast SEO，那它的文章 sitemap 必定存在于底层
-        sitemap_url = "https://www.the-tls.com/post-sitemap.xml"
-        print(f"📂 正在访问底层文章数据库: {sitemap_url}")
+        # 1. 直接访问 Yoast 默认的根地图
+        index_url = "https://www.the-tls.com/sitemap_index.xml"
+        print(f"📂 正在敲击总网站地图大门: {index_url}")
         
-        response = requests.get(sitemap_url, headers=headers, timeout=20)
+        response = requests.get(index_url, headers=headers, timeout=20)
         
-        # 防御机制：如果发现这是一个索引页，说明 TLS 把地图分片了（文章太多）
-        if "sitemap_index" in response.text or "<sitemapindex" in response.text:
-            print("🔄 发现地图索引，正在追踪最新的一份分片数据...")
-            # 找出所有的 post-sitemap
-            sub_maps = re.findall(r'<loc>(https://www.the-tls.com/post-sitemap[0-9]*\.xml)</loc>', response.text)
-            if sub_maps:
-                # 拿最后一份，它通常包含本周最新发布的文章
-                sitemap_url = sub_maps[-1] 
-                print(f"📂 锁定最新数据分片: {sitemap_url}")
-                response = requests.get(sitemap_url, headers=headers, timeout=20)
-        
-        # 如果伪装 Googlebot 还是被挡，就呼叫 Jina 强行吸取文本
-        if response.status_code != 200:
-            print(f"⚠️ 直连 XML 失败 (状态码 {response.status_code})，启动 Jina 传送门强制读取...")
-            jina_url = f"https://r.jina.ai/{sitemap_url}"
-            jina_headers = {"Accept": "text/plain", "X-No-Cache": "true"}
-            response = requests.get(jina_url, headers=jina_headers, timeout=30)
+        # 拦截判断：如果被防火墙挡了，或者又被重定向到了假首页
+        if response.status_code != 200 or "<sitemap" not in response.text:
+            print("⚠️ 直连总大门失败，呼叫 Jina 传送门强行吸取...")
+            jina_url = f"https://r.jina.ai/{index_url}"
+            response = requests.get(jina_url, headers={"Accept": "text/plain"}, timeout=30)
             
-        xml_text = response.text
+        # 2. 从根地图中找出真正的“文章子地图”
+        # 寻找类似 tls_articles-sitemap.xml 这样的分片
+        sub_maps = re.findall(r'<loc>(https://www.the-tls.com/[a-zA-Z0-9\-_]*sitemap[a-zA-Z0-9\-_]*\.xml)</loc>', response.text)
         
-        # 🔪 直接用正则从地图中暴力抠出所有的文章链接
-        raw_links = re.findall(r'https://www.the-tls.com/[a-zA-Z0-9\-\/]+', xml_text)
+        target_sitemap = ""
+        # 优先寻找包含 article 或 post 的地图
+        article_maps = [m for m in sub_maps if 'article' in m or 'post' in m]
         
-        # 去重
-        raw_links = list(dict.fromkeys(raw_links))
-        # 倒序遍历（确保先拿到最新的，Sitemap 末尾通常是最近几天新更新的数据）
+        if article_maps:
+            target_sitemap = article_maps[-1] # 最后一份通常包含本周最新文章
+        elif sub_maps:
+            target_sitemap = sub_maps[-1] # 退而求其次
+        else:
+            print("❌ 无法在根地图中找到子地图分片！可能是被盾拦截了。")
+            return []
+            
+        print(f"🎯 顺藤摸瓜成功！锁定最新文章数据库: {target_sitemap}")
+        
+        # 3. 抓取这个包含具体文章链接的子地图
+        resp2 = requests.get(target_sitemap, headers=headers, timeout=20)
+        if resp2.status_code != 200 or "<loc>" not in resp2.text:
+             resp2 = requests.get(f"https://r.jina.ai/{target_sitemap}", headers={"Accept": "text/plain"}, timeout=30)
+             
+        # 4. 暴力提取文章 URL
+        raw_links = re.findall(r'https://www.the-tls.com/[a-zA-Z0-9\-\/]+', resp2.text)
+        raw_links = list(dict.fromkeys(raw_links)) # 列表去重
+        
+        # Yoast 的地图最后更新的文章通常在最下面，所以我们倒序遍历
         raw_links.reverse()
         
         for href in raw_links:
-            # 严格过滤：只留长链接，排除非文章页面
+            # 严格过滤不需要的页面
             if len(href.split('/')) > 4:
+                # 排除规则
                 if any(x in href for x in ['/issues/', '/categor', '/author', '/tag', '/about', '/buy', '/login', '/subscribe', '/my-account', '/letters', 'wp-content', '.xml']):
                     continue
                     
@@ -111,7 +119,7 @@ def get_latest_article_urls(existing_urls, max_items=60):
                     if len(urls) >= max_items:
                         break
                         
-        print(f"🎯 偷家大获全胜！绕过所有前端防御，成功从底层抽出 {len(urls)} 篇纯净文章。")
+        print(f"🎯 偷家大获全胜！成功从底层抽出 {len(urls)} 篇纯净文章。")
         return urls
         
     except Exception as e:
