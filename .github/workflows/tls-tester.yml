@@ -19,7 +19,7 @@ jobs:
       - name: 安装必需的库
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 openai markdown cloudscraper
+          pip install requests openai markdown 
 
       - name: 运行炼丹炉脚本
         env:
