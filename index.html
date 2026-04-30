@@ -1,234 +1,141 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
-    <title>书评深度集萃</title>
-    
-    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
-    
+    <title>TLS 书评深度集萃 - 精读报告</title>
     <style>
-        body { background-color: #f4f5f7; color: #333; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.8; margin: 0; padding: 20px; }
-        .container { 
-    max-width: 800px; /* 与 header 保持一致 */
-    margin: 0 auto; 
-    padding: 0 15px; /* 增加小量左右边距，防止在手机端贴边 */
-    box-sizing: border-box;
-}
-       .header { 
-    text-align: center; 
-    margin-bottom: 30px; 
-    padding: 40px 20px; /* 上下 40，左右 20 */
-    background: #fff; 
-    border-radius: 16px; 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
-}
-        
-        /* 标题样式 */
-        .header h1 { font-size: 32px; color: #111; margin-bottom: 10px; font-weight: 800; letter-spacing: 2px; }
-        
-        .nav-tabs { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
-        .nav-btn { background: #f0f2f5; border: none; padding: 10px 25px; border-radius: 30px; font-size: 16px; color: #555; cursor: pointer; transition: all 0.2s; font-weight: bold; }
-        .nav-btn:hover { background: #e4e6eb; }
-        .nav-btn.active { background: #111; color: #fff; }
+        /* --- 核心样式重置 --- */
+        body { 
+            background-color: #f4f5f7; 
+            color: #333; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            line-height: 1.8; 
+            margin: 0; 
+            padding: 20px 0; /* 侧边距由 container 统一控制 */
+        }
 
-        .issue-group { margin-bottom: 50px; }
-        .issue-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; margin-top: 30px; }
-        .issue-title { font-size: 22px; font-weight: bold; color: #222; margin: 0; }
-        .download-btn { background: #111; color: white; border: none; padding: 8px 18px; border-radius: 20px; font-size: 14px; cursor: pointer; transition: background 0.2s; font-weight: bold; }
-        .download-btn:hover { background: #444; }
+        /* --- 宽度锁定闸门：解决宽窄不一的关键 --- */
+        .container { 
+            max-width: 800px !important; /* 强制锁定宽度，绝不让文章框变宽 */
+            margin: 0 auto !important; 
+            width: 95%; /* 适配移动端 */
+            box-sizing: border-box !important; 
+        }
+
+        /* --- 顶部白色页眉 --- */
+        .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            padding: 40px 20px; 
+            background: #fff; 
+            border-radius: 16px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-sizing: border-box !important;
+        }
+
+        .header h1 { 
+            margin: 0; 
+            font-size: 28px; 
+            letter-spacing: -0.5px;
+        }
+
+        .source-tag {
+            display: inline-block;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+
+        /* --- 文章列表与卡片 --- */
+        .article-list { 
+            width: 100%; 
+        }
 
         .article-card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 25px 20px; /* 左右间距设为 20，与 header 内部对齐 */
-    margin-bottom: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-    width: 100%;        /* 自动填满 container 的 800px */
-    box-sizing: border-box; /* 关键：防止 padding 撑开宽度 */
-}
-        .article-card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
-        
-        .article-header { padding: 25px; cursor: pointer; display: flex; justify-content: space-between; align-items: flex-start; background: #fff; transition: background 0.2s; }
-        .article-header:hover { background: #fdfdfd; }
-        .article-title-wrap { flex: 1; padding-right: 25px; }
-        
-        .article-title-en { font-size: 16px; color: #777; margin: 0 0 5px 0; font-family: Georgia, serif; line-height: 1.4; font-style: italic; }
-        .article-title-zh { font-size: 22px; color: #111; margin: 0 0 12px 0; font-weight: 800; line-height: 1.3; }
-        .article-meta-author { font-size: 14px; color: #555; background: #f0f2f5; padding: 6px 12px; border-radius: 6px; margin-bottom: 15px; display: inline-block; font-weight: 500; }
-        .article-hook { font-size: 15px; color: #d32f2f; background: #fff5f5; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #d32f2f; margin-bottom: 15px; line-height: 1.6; font-weight: 500; }
-        
-        .article-meta { font-size: 13px; color: #999; display: flex; gap: 15px; }
-        .article-meta a { color: #0366d6; text-decoration: none; }
-        
-        .toggle-icon { font-size: 20px; color: #bbb; transition: transform 0.3s ease; margin-top: 5px; }
-        .article-card.open .toggle-icon { transform: rotate(180deg); }
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px; 
+            margin-bottom: 25px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.03);
+            width: 100% !important; /* 必须 100%，它会受父级 container 800px 限制 */
+            box-sizing: border-box !important; /* 核心：让 padding 向内缩，防止撑宽 */
+            border: 1px solid rgba(0,0,0,0.02);
+        }
 
-        .article-body { padding: 0 25px 30px 25px; display: none; border-top: 1px dashed #eee; margin-top: 10px; padding-top: 25px; }
-        .article-content { font-size: 16px; color: #333; }
+        /* --- AI 总结内部的引用与文本 --- */
+        .summary-box {
+            border-left: 4px solid #e74c3c;
+            padding: 12px 20px;
+            margin: 20px 0;
+            background: #fff8f8;
+            border-radius: 0 8px 8px 0;
+        }
+
+        h2 { font-size: 20px; margin-top: 0; color: #111; }
+        h3 { font-size: 17px; color: #444; margin-bottom: 10px; }
+        p { margin: 10px 0; }
         
-        /* 针对 AI 生成的列表和加粗做一点网页端的美化 */
-        .article-content ul { padding-left: 20px; }
-        .article-content li { margin-bottom: 8px; }
-        .article-content strong { color: #111; }
-        
-        .loading { text-align: center; font-size: 16px; color: #888; padding: 50px; background: #fff; border-radius: 12px; margin-top: 20px; }
+        .author-meta { 
+            color: #777; 
+            font-size: 14px; 
+            border-bottom: 1px solid #eee; 
+            padding-bottom: 15px; 
+            margin-bottom: 20px; 
+        }
+
+        .original-link {
+            display: inline-block;
+            margin-top: 15px;
+            color: #3498db;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .original-link:hover { text-decoration: underline; }
+
+        /* 响应式微调 */
+        @media (max-width: 600px) {
+            .header { padding: 30px 15px; }
+            .article-card { padding: 20px; }
+        }
     </style>
 </head>
 <body>
+
     <div class="container">
-        <div class="header">
+        <!-- 头部区域 -->
+        <header class="header">
             <h1>📚 书评深度集萃</h1>
-            <div class="nav-tabs">
-                <button class="nav-btn active" onclick="loadFeed('nyrb_ai_enhanced.xml', this)">纽约书评</button>
-                <button class="nav-btn" onclick="loadFeed('lrb_ai_enhanced.xml', this)">伦敦书评</button>
-                <button class="nav-btn" onclick="loadFeed('tls_ai_enhanced.xml', this)">泰晤士文学增刊</button>
-            </div>
-            </div>
-        </div>
-        <div id="content" class="loading">正在解码顶尖思想... ⏳</div>
+            <div class="source-tag">泰晤士报文学增刊 (The TLS)</div>
+            <p style="color: #888; margin-top: 15px; font-size: 14px;">
+                2026年4月30日刊 · 全自动 AI 深度精读
+            </p>
+        </header>
+
+        <!-- 文章列表区域 -->
+        <main class="article-list">
+            
+            <!-- 这里是一个演示卡片，你的 Python 脚本会将循环生成的卡片放在这里 -->
+            <article class="article-card">
+                <h2>【示例】论布莱希特：杂耍暴力与冷峻寓言</h2>
+                <div class="author-meta">✍️ 作者：约瑟夫 · 罗宾逊 | 🎯 对象：舞台剧《阿图罗 · 魏的崛起》</div>
+                <div class="summary-box">
+                    <strong>一句话破题：</strong>一场关于权力如何在闹剧阴影下登台的深刻警示。
+                </div>
+                <h3>📰 核心脉络</h3>
+                <p>这里是精读报告的正文内容。由于使用了 border-box 盒模型，无论正文多长，卡片的宽度都会死死锁定在 800px，绝不会比顶部的 Header 盒子宽。</p>
+                <a href="#" class="original-link">🔗 阅读原刊全文</a>
+            </article>
+
+            <!-- 更多的 <article class="article-card"> 将在此处动态插入 -->
+
+        </main>
     </div>
 
-    <script>
-        let issueDataStore = {};
-
-        function toggleCard(headerElement) {
-            const card = headerElement.parentElement;
-            const body = card.querySelector('.article-body');
-            if (card.classList.contains('open')) {
-                body.style.display = 'none';
-                card.classList.remove('open');
-            } else {
-                body.style.display = 'block';
-                card.classList.add('open');
-            }
-        }
-
-        // 🚀 核心升级：完美的 Markdown 离线生成引擎
-        function downloadIssue(dateKey) {
-            const articles = issueDataStore[dateKey];
-            if (!articles) return;
-
-            // 初始化 Turndown 引擎，设置标题风格为标准的 # 语法
-            const turndownService = new TurndownService({ headingStyle: 'atx' });
-
-            let mdContent = `# 📚 书评深度集萃 - ${dateKey}\n\n`;
-            mdContent += `> 自动归档生成\n\n---\n\n`;
-
-            articles.forEach((art, index) => {
-                // 拼接漂亮的文档头部
-                mdContent += `## ${index + 1}. ${art.titleZh}\n`;
-                mdContent += `*${art.titleEn}*\n\n`;
-                if (art.metaInfo && !art.metaInfo.includes("未获取")) {
-                    mdContent += `**${art.metaInfo}**\n\n`;
-                }
-                if (art.hook && !art.hook.includes("未获取")) {
-                    mdContent += `> 🎯 **核心洞见**：${art.hook}\n\n`;
-                }
-                
-                // 🪄 见证奇迹的时刻：让 Turndown 帮你把 HTML 完美转回带星号、加粗、列表的纯正 Markdown
-                let textBody = turndownService.turndown(art.content);
-                
-                mdContent += `${textBody}\n\n`;
-                mdContent += `🔗 [阅读英文原刊](${art.link})\n\n---\n\n`;
-            });
-
-            // 生成文件并触发浏览器下载
-            const blob = new Blob([mdContent], { type: "text/markdown;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `书评集萃_${dateKey.replace(/\s+/g, '')}.md`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function loadFeed(xmlFile, btnElement) {
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            if(btnElement) btnElement.classList.add('active');
-
-            const contentDiv = document.getElementById("content");
-            contentDiv.innerHTML = "<div class='loading'>正在拉取数据中... 🚀</div>";
-            
-            issueDataStore = {};
-
-            fetch(xmlFile + '?t=' + new Date().getTime())
-                .then(response => response.text())
-                .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
-                .then(data => {
-                    const items = data.querySelectorAll("item");
-                    if (items.length === 0) {
-                        contentDiv.innerHTML = "<div class='loading' style='color:red;'>暂无文章。</div>";
-                        return;
-                    }
-                    
-                    items.forEach(item => {
-                        const titleEn = item.querySelector("title")?.textContent || "Untitled";
-                        const pubDate = item.querySelector("pubDate")?.textContent || "未知时间";
-                        const link = item.querySelector("link")?.textContent || "#";
-                        const desc = item.querySelector("description")?.textContent || "";
-                        
-                        const dateKey = new Date(pubDate).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) + " 更新";
-
-                        let titleZh = "解析失败", metaInfo = "", hook = "";
-                        if (desc.includes("|||")) {
-                            const parts = desc.split("|||");
-                            titleZh = parts[0]?.trim() || "";
-                            metaInfo = parts[1]?.trim() || "";
-                            hook = parts[2]?.trim() || "";
-                        }
-
-                        let contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
-                        let content = contentNode ? contentNode.textContent : "<p>无正文</p>";
-
-                        if (!issueDataStore[dateKey]) issueDataStore[dateKey] = [];
-                        issueDataStore[dateKey].push({ titleEn, titleZh, metaInfo, hook, link, content });
-                    });
-
-                    let html = "";
-                    for (const [dateKey, articles] of Object.entries(issueDataStore)) {
-                        html += `
-                            <div class="issue-group">
-                                <div class="issue-header">
-                                    <h2 class="issue-title">📖 ${dateKey} · 共 ${articles.length} 篇</h2>
-                                    <button class="download-btn" onclick="downloadIssue('${dateKey}')">📥 下载本期 (MD)</button>
-                                </div>
-                        `;
-
-                        articles.forEach(art => {
-                            html += `
-                                <div class="article-card">
-                                    <div class="article-header" onclick="toggleCard(this)">
-                                        <div class="article-title-wrap">
-                                            <h3 class="article-title-en">${art.titleEn}</h3>
-                                            ${art.titleZh && !art.titleZh.includes("解析失败") ? `<h2 class="article-title-zh">${art.titleZh}</h2>` : ''}
-                                            ${art.metaInfo && !art.metaInfo.includes("未获取") ? `<div class="article-meta-author">${art.metaInfo}</div>` : ''}
-                                            ${art.hook && !art.hook.includes("未获取") ? `<div class="article-hook">🎯 ${art.hook}</div>` : ''}
-                                            <div class="article-meta">
-                                                <span>🔗 <a href="${art.link}" target="_blank" onclick="event.stopPropagation();">阅读原刊</a></span>
-                                            </div>
-                                        </div>
-                                        <div class="toggle-icon">▼</div>
-                                    </div>
-                                    <div class="article-body">
-                                        <div class="article-content">${art.content}</div>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        html += `</div>`;
-                    }
-                    contentDiv.innerHTML = html;
-                })
-                .catch(error => {
-                    contentDiv.innerHTML = `<div class='loading' style='color:red;'>加载失败，请检查网络或配置。</div>`;
-                });
-        }
-
-        window.onload = () => loadFeed('nyrb_ai_enhanced.xml', document.querySelector('.nav-btn'));
-    </script>
 </body>
 </html>
