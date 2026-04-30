@@ -52,62 +52,70 @@ def get_existing_items():
     return existing_urls, existing_items_xml
 
 def get_latest_article_urls(existing_urls, max_items=60):
-    """【完全体】使用 Jina 执行 JS 获取渲染后的 HTML，并精准狙击文章链接"""
+    """【Plan B 降维偷家】直接读取 WordPress SEO 网站地图 (Sitemap)"""
+    import re
+    import requests
     
-    target_url = "https://www.the-tls.com/issues/current-issue/" 
-    jina_url = f"https://r.jina.ai/{target_url}"
+    print("🕵️ 启动 Plan B：放弃强攻前端页面，绕道后门读取 XML 网站地图...")
     urls = []
     
-    print(f"🕵️ 启动终极武器：召唤 Jina 在云端执行 JavaScript 渲染目录 -> {target_url}")
+    # 伪装成 Google 爬虫 (Cloudflare 通常对 Googlebot 抓取 Sitemap 是一路绿灯的)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+        "Accept": "text/xml"
+    }
+    
     try:
-       # 🚀 魔法指令：拿枪指着 Jina，不看到 tls-card-headline 出现，绝不许返回！
-        headers = {
-            "Accept": "text/html",
-            "X-No-Cache": "true",
-            "X-Return-Format": "html",
-            "X-Wait-For-Selector": ".tls-card-headline"  # 🌟 就是这句极其关键的死命令！
-        }
+        # TLS 既然用了 Yoast SEO，那它的文章 sitemap 必定存在于底层
+        sitemap_url = "https://www.the-tls.com/post-sitemap.xml"
+        print(f"📂 正在访问底层文章数据库: {sitemap_url}")
         
-        response = requests.get(jina_url, headers=headers, timeout=40)
-        response.raise_for_status()
-        html_content = response.text
+        response = requests.get(sitemap_url, headers=headers, timeout=20)
         
-        # 将 Jina 传回来的完整 HTML 交给 BeautifulSoup
-        soup = BeautifulSoup(html_content, 'html.parser')
-        print("🕵️ 正在扫描云端渲染后的 HTML，寻找 tls-card-headline 元素...")
+        # 防御机制：如果发现这是一个索引页，说明 TLS 把地图分片了（文章太多）
+        if "sitemap_index" in response.text or "<sitemapindex" in response.text:
+            print("🔄 发现地图索引，正在追踪最新的一份分片数据...")
+            # 找出所有的 post-sitemap
+            sub_maps = re.findall(r'<loc>(https://www.the-tls.com/post-sitemap[0-9]*\.xml)</loc>', response.text)
+            if sub_maps:
+                # 拿最后一份，它通常包含本周最新发布的文章
+                sitemap_url = sub_maps[-1] 
+                print(f"📂 锁定最新数据分片: {sitemap_url}")
+                response = requests.get(sitemap_url, headers=headers, timeout=20)
         
-        # 🎯 精准狙击：直接提取包含这个 class 的 a 标签
-        article_tags = soup.find_all('a', class_=lambda c: c and 'tls-card-headline' in c)
+        # 如果伪装 Googlebot 还是被挡，就呼叫 Jina 强行吸取文本
+        if response.status_code != 200:
+            print(f"⚠️ 直连 XML 失败 (状态码 {response.status_code})，启动 Jina 传送门强制读取...")
+            jina_url = f"https://r.jina.ai/{sitemap_url}"
+            jina_headers = {"Accept": "text/plain", "X-No-Cache": "true"}
+            response = requests.get(jina_url, headers=jina_headers, timeout=30)
+            
+        xml_text = response.text
         
-        for a_tag in article_tags:
-            href = a_tag.get('href')
-            if not href:
-                continue
-                
-            # 补全相对路径
-            if href.startswith('/'):
-                href = "https://www.the-tls.com" + href
-                
-            # 基础安全过滤
-            if href.startswith('https://www.the-tls.com/') and len(href.split('/')) > 4:
-                # 哪怕是指挥所提取出来的，我们也再加一层双保险，排除可能混入的非文章链接
-                if any(x in href for x in ['/issues/', '/categor', '/author', '/tag', '/about', '/buy', '/login', '/subscribe', '/my-account', '/letters', '.jpg', '.png']):
+        # 🔪 直接用正则从地图中暴力抠出所有的文章链接
+        raw_links = re.findall(r'https://www.the-tls.com/[a-zA-Z0-9\-\/]+', xml_text)
+        
+        # 去重
+        raw_links = list(dict.fromkeys(raw_links))
+        # 倒序遍历（确保先拿到最新的，Sitemap 末尾通常是最近几天新更新的数据）
+        raw_links.reverse()
+        
+        for href in raw_links:
+            # 严格过滤：只留长链接，排除非文章页面
+            if len(href.split('/')) > 4:
+                if any(x in href for x in ['/issues/', '/categor', '/author', '/tag', '/about', '/buy', '/login', '/subscribe', '/my-account', '/letters', 'wp-content', '.xml']):
                     continue
                     
                 if href not in existing_urls and href not in urls:
                     urls.append(href)
                     if len(urls) >= max_items:
                         break
-        
-        print(f"🎯 云端狙击完毕！成功锁定 {len(urls)} 篇纯净文章。")
-        
-        if len(urls) == 0:
-            print("⚠️ 警告：虽然拿到了 HTML，但一篇文章都没找到。可能云端 JS 渲染超时。")
-            
+                        
+        print(f"🎯 偷家大获全胜！绕过所有前端防御，成功从底层抽出 {len(urls)} 篇纯净文章。")
         return urls
         
     except Exception as e:
-        print(f"❌ 终极目录抓取失败: {e}")
+        print(f"❌ 偷家行动失败: {e}")
         return []
 # ==========================================
 # 2. 核心引擎：Jina 空间传送门与 AI 提炼
