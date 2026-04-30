@@ -32,6 +32,8 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add tls_ai_enhanced.xml
-          git commit -m "Auto-update TLS AI feed" || exit 0
-          git push
+          # 💡 魔法1：把精确指定文件名换成 `git add -A`（有啥变动就加啥，没变动就不加，绝不报错）
+          git add -A
+          # 💡 魔法2：如果 commit 发现没有任何文件需要提交，就温柔地打印一句话并正常退出，不要抛出红色的报错
+          git commit -m "Auto-update TLS AI feed" || echo "🎉 本次运行没有产生新的数据，无需提交。"
+          git push || echo "☁️ 没有需要推送到云端的更新。"
