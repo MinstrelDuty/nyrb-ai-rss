@@ -1,67 +1,62 @@
 import requests
-from bs4 import BeautifulSoup
+import re
 
-def cloud_test_rss_extraction():
-    print("🚀 启动 TLS 云端环境专项测试 (全自动 RSS 订阅源版)...")
+def cloud_test_rss_brute_force():
+    print("🚀 启动 TLS 云端环境专项测试 (RSS 暴力正则版)...")
     
     # 🎯 目标：TLS 官方 RSS
     rss_url = "https://www.the-tls.com/feed"
+    jina_url = f"https://r.jina.ai/{rss_url}"
     
+    # 💡 强制要求 Jina 只搬运纯文本，不要做任何多余的渲染
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "text/xml"
+        "Accept": "text/plain", 
+        "X-No-Cache": "true"
     }
     
-    print(f"📡 正在尝试读取 RSS 订阅源: {rss_url}")
+    print(f"📡 正在通过 Jina 代理强力抽取 RSS 文本: {rss_url}")
     
     try:
-        # 第一步：尝试直接请求
-        print("尝试 1: 直连 RSS 源...")
-        response = requests.get(rss_url, headers=headers, timeout=20)
+        response = requests.get(jina_url, headers=headers, timeout=40)
+        response.raise_for_status()
         
-        # 第二步：如果直连失败（比如返回 403 或 404），改用 Jina 代理
-        if response.status_code != 200 or not response.text.strip():
-            print(f"⚠️ 直连失败 (状态码: {response.status_code})，尝试通过 Jina 代理读取...")
-            jina_url = f"https://r.jina.ai/{rss_url}"
-            # 💡 强制使用纯文本模式，绕过 JS 渲染
-            response = requests.get(jina_url, headers={"Accept": "text/plain"}, timeout=30)
+        # 🧪 打印前 500 个字符看看抓到了什么（调试用）
+        print(f"📄 成功获取数据，前 500 字符预览: \n{response.text[:500]}...")
         
-        # 解析 XML
-        # 注意：这里我们使用 'html.parser' 或 'xml' (如果安装了 lxml) 
-        # 为了兼容性，先用 'html.parser' 演示
-        soup = BeautifulSoup(response.text, 'html.parser')
+        # 🔪 核心杀招：直接用正则匹配 <link> 标签中的内容或所有 TLS 长链接
+        # 这种方法免疫所有解析器的标签变异
+        links = re.findall(r'https://www.the-tls.com/[a-zA-Z0-9\-\/]+', response.text)
         
-        # RSS 规范中链接通常在 <link> 标签内，嵌套在 <item> 中
-        items = soup.find_all('item')
+        # 去重并保持顺序
+        unique_links = []
+        for l in links:
+            if l not in unique_links:
+                unique_links.append(l)
         
+        # 🎯 精准过滤
         urls = []
-        for item in items:
-            # 提取 link 标签的内容
-            link = item.find('link').next_sibling.strip() if item.find('link') else ""
-            if not link:
-                # 有些 RSS 格式 link 标签直接包含文本
-                link = item.link.text if item.link else ""
-            
-            if link and "the-tls.com" in link:
-                # 基础过滤：排除掉非文章的链接
-                if any(x in link for x in ['/issues/', '/category/', '/author/', '/tag/', '/topics/']):
+        for link in unique_links:
+            # TLS 文章链接通常层级较深（大于 4 个斜杠）
+            if len(link.split('/')) > 4:
+                # 排除 RSS 常见的干扰项
+                if any(x in link for x in ['/issues/', '/category/', '/author/', '/tag/', '/topics/', 'wp-content', '.xml']):
                     continue
-                if link not in urls:
-                    urls.append(link)
+                urls.append(link)
 
         print("\n" + "="*60)
-        print(f"✅ RSS 测试完毕！自动发现 {len(urls)} 篇最新文章链接。")
+        print(f"✅ 暴力提取成功！自动锁定 {len(urls)} 篇最新文章链接。")
         print("="*60)
         
         if urls:
-            for i, url in enumerate(urls[:50], 1): # 展示前 50 篇
+            for i, url in enumerate(urls[:50], 1):
                 print(f"{i:02d}. {url}")
+            print(f"\n💡 结论：RSS 路径通畅，可以实现全自动按期抓取。")
         else:
-            print("❌ 警告：虽然读取了数据，但未发现有效文章链接。可能是解析规则需微调。")
+            print("❌ 警告：依然没抓到链接。请检查预览文字，看看是不是返回了防火墙拦截页。")
         print("="*60)
 
     except Exception as e:
-        print(f"❌ 云端测试发生异常: {e}")
+        print(f"❌ 云端测试异常: {e}")
 
 if __name__ == "__main__":
-    cloud_test_rss_extraction()
+    cloud_test_rss_brute_force()
