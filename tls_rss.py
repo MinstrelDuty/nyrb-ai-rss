@@ -54,7 +54,6 @@ def get_existing_items():
 def get_latest_article_urls(existing_urls, max_items=70):
     """精准抓取 TLS 最新一期 (Current Issue) 的文章链接"""
     
-    # 🎯 听你的！直接精准狙击最新一期目录页
     target_url = "https://www.the-tls.com/issues/current-issue/" 
     urls = []
     
@@ -64,14 +63,17 @@ def get_latest_article_urls(existing_urls, max_items=70):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 在 current-issue 页面下寻找文章链接
         for a_tag in soup.find_all('a', href=True):
             href = a_tag['href']
             
-            # 过滤规则：只要属于 the-tls.com 的正经文章链接
+            # 🛠️ 核心修复：如果是相对路径（以 / 开头），自动拼上主域名
+            if href.startswith('/'):
+                href = "https://www.the-tls.com" + href
+                
+            # 过滤规则：只要属于 the-tls.com 的长链接
             if href.startswith('https://www.the-tls.com/') and len(href.split('/')) > 4:
-                # 排除掉该页面上可能存在的分类导航、作者页等非文章链接
-                if any(x in href for x in ['/issues/', '/category/', '/author/', '/tag/', '/about/']):
+                # 排除掉各种非文章的干扰页面
+                if any(x in href for x in ['/issues/', '/category/', '/author/', '/tag/', '/about/', '/buy', '/login', '/subscribe']):
                     continue
                     
                 if href not in existing_urls and href not in urls:
@@ -80,12 +82,16 @@ def get_latest_article_urls(existing_urls, max_items=70):
                         break
         
         print(f"🎯 侦测完毕！从 Current Issue 页面成功锁定 {len(urls)} 篇全新文章。")
+        
+        # 防御机制预警：如果补全了域名还是 0 篇，说明连目录页都被验证码盾挡住了
+        if len(urls) == 0:
+            print("⚠️ 警告：检测到 0 篇文章。可能是 TLS 的目录页也开启了防机器人验证！")
+            
         return urls
         
     except Exception as e:
         print(f"❌ 抓取 TLS 目录失败: {e}")
         return []
-
 # ==========================================
 # 2. 核心引擎：Jina 空间传送门与 AI 提炼
 # ==========================================
