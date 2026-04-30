@@ -1,56 +1,69 @@
 import requests
 import re
+from datetime import datetime, timedelta
 
-def cloud_test_final_victory():
-    print("🚀 启动 TLS 终极渗透测试 (强制等待 JS 渲染版)...")
+def cloud_test_smart_time_filter():
+    print("🚀 启动 TLS 云端环境专项测试 (智能时间过滤版)...")
     
-    target_url = "https://www.the-tls.com/issues/current-issue/"
-    jina_url = f"https://r.jina.ai/{target_url}"
+    # 🎯 目标：锁定你之前测试成功过的文章分片
+    sitemap_url = "https://www.the-tls.com/tls_articles-sitemap25.xml"
+    jina_url = f"https://r.jina.ai/{sitemap_url}"
     
     headers = {
-        "Accept": "text/html",
-        "X-No-Cache": "true",
-        "X-Return-Format": "html",
-        # 🎯 核心：强制 Jina 等待这个特定的 class 出现，最多等 20 秒
-        "X-Wait-For-Selector": ".tls-card-headline", 
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+        "Accept": "text/plain",
+        "X-No-Cache": "true"
     }
     
-    print(f"📡 正在等待 JS 渲染并解析目录: {target_url}")
+    print(f"📡 正在通过 Jina 提取 XML 数据库并进行时间比对: {sitemap_url}")
     
     try:
-        # 增加超时到 90 秒，给 JS 渲染留足时间
-        response = requests.get(jina_url, headers=headers, timeout=90)
+        response = requests.get(jina_url, headers=headers, timeout=40)
+        response.raise_for_status()
         
-        # 检查是否包含核心 class
-        if "tls-card-headline" not in response.text:
-            print("⚠️ 警告：虽然击穿了防火墙，但 JS 渲染似乎未产生文章内容。")
-            print(f"数据长度: {len(response.text)} 字符")
-            # 看看返回的到底是啥，有没有可能是数据结构变了
-        
-        # 提取链接：我们只提取带有具体路径的文章链接
-        links = re.findall(r'https://www.the-tls.com/[a-zA-Z0-9\-\/]+', response.text)
-        
-        urls = []
-        for l in list(dict.fromkeys(links)):
-            # 文章链接特征：层级深，且不含 wp-json, content 等开发路径
-            if len(l.split('/')) > 4:
-                if not any(x in l for x in ['/issues/', '/category/', '/author/', '/tag/', '/topics/', 'wp-', 'feed', 'oembed']):
-                    urls.append(l)
+        # 🕰️ 定义“本周”的时间窗口（例如过去 7 天）
+        # 考虑到 TLS 每周五更新，设为 8 天可以稳稳覆盖一整期
+        time_window_days = 8
+        time_threshold = datetime.now() - timedelta(days=time_window_days)
+        print(f"📅 过滤阈值：只保留 {time_threshold.strftime('%Y-%m-%d')} 之后发布的文章")
 
+        # 🔪 核心提取逻辑：匹配 <loc>链接</loc> 和紧随其后的 <lastmod>日期</lastmod>
+        # re.DOTALL 允许跨行匹配
+        blocks = re.findall(r'<loc>(https://www.the-tls.com/[a-zA-Z0-9\-\/]+)</loc>\s*<lastmod>(.*?)</lastmod>', response.text, re.DOTALL)
+        
+        results = []
+        for link, lastmod in blocks:
+            # 1. 基础路径过滤
+            if any(x in link for x in ['/issues/', '/category/', '/author/', '/tag/', '/topics/', 'wp-content']):
+                continue
+                
+            # 2. 时间过滤
+            try:
+                # lastmod 格式通常为 2026-04-30T10:00:00+00:00，取前 10 位
+                mod_date = datetime.strptime(lastmod[:10], '%Y-%m-%d')
+                if mod_date >= time_threshold:
+                    results.append({"url": link, "date": lastmod[:10]})
+            except Exception:
+                continue
+
+        # 🎯 结果展示
         print("\n" + "="*60)
-        print(f"✅ 最终战果：在云端成功锁定 {len(urls)} 篇文章链接！")
+        print(f"✅ 智能过滤成功！在最近 {time_window_days} 天内共锁定 {len(results)} 篇本期文章。")
         print("="*60)
         
-        if urls:
-            for i, url in enumerate(urls[:60], 1):
-                print(f"{i:02d}. {url}")
+        if results:
+            # 倒序排列，最新的在前
+            results.reverse()
+            for i, item in enumerate(results[:60], 1):
+                print(f"{i:02d}. [{item['date']}] {item['url']}")
+            
+            print(f"\n💡 结论：该方案可以完美实现云端全自动“按期”抓取。")
         else:
-            print("❌ 解析失败：HTML 中未发现符合正则的文章链接。")
+            print("❌ 未发现最近 8 天内更新的文章。可能是本周尚未更新，或需要检查分片编号。")
+            print(f"提示：XML 中最新的一条记录日期是: {blocks[-1][1][:10] if blocks else '无记录'}")
         print("="*60)
 
     except Exception as e:
-        print(f"❌ 运行异常: {e}")
+        print(f"❌ 测试异常: {e}")
 
 if __name__ == "__main__":
-    cloud_test_final_victory()
+    cloud_test_smart_time_filter()
