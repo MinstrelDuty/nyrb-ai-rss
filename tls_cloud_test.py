@@ -2,61 +2,59 @@ import requests
 import re
 from datetime import datetime, timedelta
 
-def cloud_test_category_time_filter():
-    print("🚀 启动 TLS 专项测试 (分类路径 + 时间窗口双重验证)...")
+def cloud_test_dynamic_full_auto():
+    print("🚀 启动 TLS 终极全自动测试 (动态分片扫描)...")
     
-    # 🎯 目标分片
-    sitemap_url = "https://www.the-tls.com/tls_articles-sitemap25.xml"
-    jina_url = f"https://r.jina.ai/{sitemap_url}"
-    
-    # 🏷️ 你观察到的大分类关键词白名单
-    # 只有命中这些路径的链接才被认为是“正文文章”
-    CATEGORY_WHITELIST = [
-        '/arts/', '/history/', '/literature/', '/politics-society/', 
-        '/lives/', '/philosophy/', '/science-technology/', '/classics/',
-        '/archaeology/', '/religion/', '/law/', '/economics/'
-    ]
-    
-    print(f"📡 正在从分片中提取符合分类特征的最新文章...")
+    # 1. 先抓索引页，找到当前最大的分片编号
+    index_url = "https://www.the-tls.com/sitemap_index.xml"
+    headers = {"Accept": "text/plain", "X-No-Cache": "true"}
     
     try:
-        response = requests.get(jina_url, headers={"Accept": "text/plain"}, timeout=40)
+        print("📡 正在检索最新数据库索引...")
+        index_resp = requests.get(f"https://r.jina.ai/{index_url}", headers=headers, timeout=30)
+        # 找出所有 tls_articles-sitemapXX.xml
+        all_shards = re.findall(r'tls_articles-sitemap(\d+)\.xml', index_resp.text)
+        if not all_shards:
+            print("❌ 未能获取分片列表，尝试手动降级扫描...")
+            target_shards = ["26", "25"]
+        else:
+            # 取最大的两个分片，确保覆盖跨周更新
+            latest_shard = max(map(int, all_shards))
+            target_shards = [str(latest_shard), str(latest_shard - 1)]
         
-        # 设定 8 天的时间窗口（覆盖最新一期）
-        time_threshold = datetime.now() - timedelta(days=8)
+        print(f"📂 锁定最新分片: {target_shards}")
+
+        # 2. 扫描选定的分片
+        CATEGORY_WHITELIST = ['/arts/', '/history/', '/literature/', '/politics-society/', '/lives/', '/philosophy/', '/science-technology/']
+        final_articles = []
         
-        # 提取链接和日期
-        blocks = re.findall(r'<loc>(.*?)</loc>.*?<lastmod>(.*?)</lastmod>', response.text, re.DOTALL)
-        
-        results = []
-        for link, lastmod in blocks:
-            # 1. 验证分类：必须命中白名单中的一个大分类
-            if not any(cat in link for cat in CATEGORY_WHITELIST):
-                continue
+        for shard_num in target_shards:
+            shard_url = f"https://www.the-tls.com/tls_articles-sitemap{shard_num}.xml"
+            print(f"🔍 正在渗透分片 {shard_num}...")
+            resp = requests.get(f"https://r.jina.ai/{shard_url}", headers=headers, timeout=30)
             
-            # 2. 验证时间：必须在最近 8 天内
-            try:
-                mod_date = datetime.strptime(lastmod[:10], '%Y-%m-%d')
-                if mod_date < time_threshold:
-                    continue
-            except:
-                continue
-                
-            # 3. 排除杂质
-            if any(x in link for x in ['/topics/', '/author/', '/tag/']):
-                continue
+            # 暴力提取所有符合分类且路径够深的链接
+            links = re.findall(r'<loc>(https://www.the-tls.com/[a-zA-Z0-9\-\/]+)</loc>', resp.text)
+            
+            for l in links:
+                if any(cat in l for cat in CATEGORY_WHITELIST) and len(l.split('/')) > 4:
+                    if not any(x in l for x in ['/author/', '/tag/', '/topics/']):
+                        if l not in final_articles:
+                            final_articles.append(l)
 
-            results.append({"url": link, "date": lastmod[:10]})
-
+        # 3. 结果展示（模拟最新一期）
+        # 我们不设时间门禁，直接取最新的 50 篇
         print("\n" + "="*60)
-        print(f"✅ 过滤成功！在本期中精准锁定 {len(results)} 篇分类长文。")
+        print(f"✅ 扫描完毕！从最新数据库中提取到 {len(final_articles)} 篇候选文章。")
         print("="*60)
         
-        for i, item in enumerate(reversed(results), 1):
-            print(f"{i:02d}. [{item['date']}] {item['url']}")
+        # 这里的 reverse 是因为 Sitemap 通常旧的在前，新的在后
+        final_articles.reverse()
+        for i, url in enumerate(final_articles[:55], 1):
+            print(f"{i:02d}. {url}")
             
     except Exception as e:
-        print(f"❌ 测试异常: {e}")
+        print(f"❌ 运行异常: {e}")
 
 if __name__ == "__main__":
-    cloud_test_category_time_filter()
+    cloud_test_dynamic_full_auto()
