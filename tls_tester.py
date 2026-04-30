@@ -2,6 +2,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI
+import cloudscraper # 🚀 引入破壁神器
 
 # ==========================================
 # 0. 炼丹炉配置 (云端环境)
@@ -26,12 +27,23 @@ HEADERS = {
 }
 
 # ==========================================
-# 1. 探针：尝试抓取 TLS 正文
+# ==========================================
+# 1. 探针：使用 CloudScraper 潜入 TLS
 # ==========================================
 def scrape_tls_article(url):
-    print(f"🕵️ 正在潜入 TLS 抓取文章: {url}")
+    print(f"🕵️ 正在潜入 TLS 抓取文章 (启动 CloudScraper 伪装): {url}")
     try:
-        response = requests.get(url, headers=HEADERS, timeout=15)
+        # 🚀 实例化破壁机，伪装成最新的 Windows Chrome 浏览器
+        scraper = cloudscraper.create_scraper(
+            browser={
+                'browser': 'chrome',
+                'platform': 'windows',
+                'desktop': True
+            }
+        )
+        
+        # 使用 scraper 替代原先的 requests
+        response = scraper.get(url, timeout=20)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
@@ -39,24 +51,28 @@ def scrape_tls_article(url):
         title_tag = soup.find('h1')
         title = title_tag.text.strip() if title_tag else "未获取标题"
         
-        # 尝试广角抓取正文（TLS 的正文段落）
+        # TLS 的正文通常藏在特定的段落类名中，或者直接抓 <p>
         paragraphs = soup.find_all('p')
         text_blocks = [p.get_text(separator=' ', strip=True) for p in paragraphs]
         text = "\n".join([t for t in text_blocks if len(t) > 30])
         
         print("\n" + "="*50)
         print(f"📊 【云端抓取报告】")
+        print(f"网页返回状态码: {response.status_code}")
         print(f"英文原标题: {title}")
         print(f"抓取到的总字符数: {len(text)} 字符")
         print("="*50 + "\n")
         
-        # 🚨 付费墙预警逻辑
+        # 拦截刚才那个好笑的“真人验证”警告
+        if "Help us verify real visitors" in title or "potentially automated" in text:
+            print("🚨 警报：CloudScraper 伪装失效，依然被 TLS 防火墙拦截！")
+            return None
+            
         if len(text) < 1500:
-            print("⚠️ 警告：抓取到的字符数异常少！大概率撞上了 TLS 的付费墙（Paywall）！")
-            print("下面是抓取到的部分原文，请核对是否只有前几段：\n")
+            print("⚠️ 警告：可能撞上了付费墙（Paywall）！下面是抓取到的部分原文：\n")
             print(text[:500] + "......\n")
         else:
-            print("✅ 看起来抓取到了完整内容！下面是部分原文展示：\n")
+            print("✅ 成功突破防火墙！下面是部分原文展示：\n")
             print(text[:500] + "......\n")
             
         return {"title": title, "url": url, "text": text}
