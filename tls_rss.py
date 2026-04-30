@@ -260,8 +260,8 @@ def process_with_ai(article_data):
 def main():
     existing_urls, existing_items_xml = get_existing_items()
     
-    # 限制单次运行抓 20 篇，保护 API 和精力
-    urls = get_latest_article_urls(existing_urls, max_items=20) 
+    # 限制单次运行抓 60 篇，保护 API 和精力
+    urls = get_latest_article_urls(existing_urls, max_items=60) 
     
     if not urls: 
         print("🎉 当前期 TLS 无新文章发布。正在休眠...")
