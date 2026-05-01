@@ -18,7 +18,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests
+          pip install requests markdown re
 
       - name: Run Crawler Test (NYT)
-        run: python test_nyt_crawler.py
+        run: python test_nyt_single.py
