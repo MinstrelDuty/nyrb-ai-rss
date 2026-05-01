@@ -1,14 +1,15 @@
-name: NYRB and LRB AI RSS Generator
+name: 📚 传统三大刊 (NYRB, LRB, TLS)
 
 on:
   schedule:
-    # 依然是每周一、周四自动运行
     - cron: '0 8 * * 1,4' 
-  workflow_dispatch: # 允许你随时手动点击运行
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -28,15 +29,13 @@ jobs:
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
-          # 依次运行两个爬虫
-          python "nyrbrss.py"
-          python "lrb_rss.py"
+          python "nyrb_rss.py" || true
+          python "lrb_rss.py" || true
+          python "tls_rss.py" || true
 
       - name: Commit and push XML files
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # 📦 1. 把所有生成的 xml 文件打包
           git add *.xml
-          # 🚀 2. 检查是否有新内容，如果有，就打上标签并狠狠地推送到你的仓库里！
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update AI RSS feeds" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update 3 Magazines AI RSS feeds" && git push)
