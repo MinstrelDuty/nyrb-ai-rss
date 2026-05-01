@@ -7,6 +7,7 @@ import markdown
 import xml.etree.ElementTree as ET
 from email.utils import formatdate
 from openai import OpenAI
+from bs4 import BeautifulSoup
 import random
 
 # ==========================================
