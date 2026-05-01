@@ -18,7 +18,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests markdown 
+          pip install requests markdown beautifulsoup4
 
       - name: Run Crawler Test (NYT)
         env:
