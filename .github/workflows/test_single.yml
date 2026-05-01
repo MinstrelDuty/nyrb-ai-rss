@@ -1,32 +1,24 @@
-name: 🎯 NYT 单篇狙击测试
+name: 🧪 Pre-flight Tests
 
-# 只有 workflow_dispatch，意味着它绝对不会自动跑，纯手动控制
 on:
-  workflow_dispatch: 
+  workflow_dispatch: # 允许你在网页上手动点击运行测试
 
 jobs:
-  run-test:
+  run-tests:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 获取代码
-        uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: 🐍 配置 Python 环境
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: 📦 安装测试依赖
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          # 测试脚本只需要这两个核心库
-          pip install requests markdown
+          pip install requests
 
-      - name: 🔥 运行满级炼丹炉测试
-        env:
-          # 读取你的 API 密钥
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: |
-          # 运行测试脚本
-          python test_nyt_single.py
+      - name: Run Crawler Test (NYT)
+        run: python test_nyt_crawler.py
