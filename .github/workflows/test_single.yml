@@ -21,4 +21,8 @@ jobs:
           pip install requests markdown 
 
       - name: Run Crawler Test (NYT)
-        run: python test_nyt_single.py
+        env:
+          # 这一行就是把 GitHub 金库里的秘密，赋值给环境变量 DEEPSEEK_API_KEY
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }} 
+        run: |
+          python test_nyt_single.py
