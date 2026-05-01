@@ -1,0 +1,32 @@
+name: 🎯 NYT 单篇狙击测试
+
+# 只有 workflow_dispatch，意味着它绝对不会自动跑，纯手动控制
+on:
+  workflow_dispatch: 
+
+jobs:
+  run-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 获取代码
+        uses: actions/checkout@v4
+
+      - name: 🐍 配置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 📦 安装测试依赖
+        run: |
+          python -m pip install --upgrade pip
+          # 测试脚本只需要这两个核心库
+          pip install requests markdown
+
+      - name: 🔥 运行满级炼丹炉测试
+        env:
+          # 读取你的 API 密钥
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          # 运行测试脚本
+          python test_nyt_single.py
