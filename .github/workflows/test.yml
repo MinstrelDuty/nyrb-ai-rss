@@ -1,0 +1,66 @@
+name: 📚 Auto Update Book Reviews
+
+# 触发条件：每天定时运行，以及允许手动点击运行
+on:
+  schedule:
+    # 每天 UTC 时间凌晨 2 点（北京时间上午 10 点）自动执行一次，你可以根据需要修改
+    - cron: '0 2 * * *'
+  workflow_dispatch: # 允许在 GitHub 网页端手动点击 "Run workflow" 测试
+
+jobs:
+  update-reviews:
+    runs-on: ubuntu-latest
+    
+    # ⚠️ 极其关键：赋予 GitHub Actions 推送代码的权限
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # 获取完整历史记录，防止 push 时报错
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+          # 如果你的旧脚本还用到了 bs4 等其他库，请在这里一并加上，例如：
+          # pip install beautifulsoup4
+
+      - name: 🚀 Run AI Processing Scripts
+        env:
+          # 从你仓库的 Settings -> Secrets and variables 读取你的 AI 密钥
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          echo "开始运行旧版三大刊物脚本..."
+          python nyrb_rss.py || echo "NYRB 运行失败，但继续执行"
+          python lrb_rss.py || echo "LRB 运行失败，但继续执行"
+          python tls_rss.py || echo "TLS 运行失败，但继续执行"
+          
+          echo "开始运行新增的纽约时报书评脚本..."
+          python nyt_processor.py || echo "NYT 运行失败，但继续执行"
+
+      - name: 💾 Commit and Push Changes
+        run: |
+          # 配置虚拟机的 Git 身份（用 GitHub 官方机器人的身份）
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 把所有新生成的 XML 文件和防重复的 txt 记录本加到暂存区
+          git add *_ai_enhanced.xml
+          git add *_processed_urls.txt
+          
+          # 检查是否有文件改动，如果有则提交并推送；如果没有（比如今天各大刊都没更新），则输出提示不报错
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "🤖 Auto-update AI Reviews data [skip ci]"
+            git push
+            echo "✅ 数据已成功更新并推送到仓库！"
+          else
+            echo "💤 今日无新文章，无需推送。"
+          fi
