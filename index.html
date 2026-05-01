@@ -88,41 +88,83 @@
             }
         }
 
-        // 🚀 核心升级：完美的 Markdown 离线生成引擎
+       
+       // 🚀 核心升级：完美的独立沉浸式阅读版 (HTML) 生成引擎
         function downloadIssue(dateKey) {
             const articles = issueDataStore[dateKey];
             if (!articles) return;
 
-            // 初始化 Turndown 引擎，设置标题风格为标准的 # 语法
-            const turndownService = new TurndownService({ headingStyle: 'atx' });
+            // 1. 解决命名问题：动态获取当前所在的刊物名称
+            const activeTab = document.querySelector('.nav-btn.active');
+            const sourceName = activeTab ? activeTab.innerText : "综合";
+            // 拼接出完美的文件名：[纽约书评]_书评深度集萃_2026年4月30日更新.html
+            const safeDateKey = dateKey.replace(/\s+/g, '');
+            const fileName = `[${sourceName}]_书评深度集萃_${safeDateKey}.html`;
 
-            let mdContent = `# 📚 书评深度集萃 - ${dateKey}\n\n`;
-            mdContent += `> 自动归档生成\n\n---\n\n`;
+            // 2. 解决格式问题：构建一个自带优美 CSS 排版的独立 HTML 离线文件
+            let htmlContent = `
+            <!DOCTYPE html>
+            <html lang="zh-CN">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>${sourceName} - 深度精读</title>
+                <style>
+                    /* 注入离线阅读版的专属优雅排版 */
+                    body { max-width: 800px; margin: 0 auto; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.8; color: #333; background-color: #fdfdfd; }
+                    .cover { text-align: center; border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 50px; }
+                    .cover h1 { font-size: 32px; margin-bottom: 10px; color: #111; }
+                    .cover p { color: #666; font-size: 16px; }
+                    .article { margin-bottom: 60px; padding-bottom: 40px; border-bottom: 1px dashed #ddd; page-break-after: always; }
+                    .article-title-zh { font-size: 24px; color: #111; margin: 0 0 8px 0; font-weight: bold; }
+                    .article-title-en { font-size: 16px; color: #666; font-style: italic; margin: 0 0 15px 0; }
+                    .meta-box { background: #f4f5f7; padding: 12px 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; color: #555; font-weight: 500; }
+                    .hook-box { border-left: 4px solid #d32f2f; padding: 12px 15px; background: #fff5f5; color: #d32f2f; font-weight: bold; margin-bottom: 25px; border-radius: 0 6px 6px 0; }
+                    .content h3 { color: #222; font-size: 18px; margin-top: 25px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+                    .content p { margin-bottom: 15px; text-align: justify; }
+                    .content ul { padding-left: 20px; }
+                    .content li { margin-bottom: 8px; }
+                    .read-more { margin-top: 30px; display: inline-block; color: #0366d6; text-decoration: none; font-weight: bold; font-size: 15px; }
+                    .read-more:hover { text-decoration: underline; }
+                </style>
+            </head>
+            <body>
+                <div class="cover">
+                    <h1>📚 ${sourceName} · 深度精读</h1>
+                    <p>收录期数：${dateKey} | 自动归档生成</p>
+                </div>
+            `;
 
+            // 循环注入每篇文章的数据
             articles.forEach((art, index) => {
-                // 拼接漂亮的文档头部
-                mdContent += `## ${index + 1}. ${art.titleZh}\n`;
-                mdContent += `*${art.titleEn}*\n\n`;
-                if (art.metaInfo && !art.metaInfo.includes("未获取")) {
-                    mdContent += `**${art.metaInfo}**\n\n`;
-                }
-                if (art.hook && !art.hook.includes("未获取")) {
-                    mdContent += `> 🎯 **核心洞见**：${art.hook}\n\n`;
-                }
-                
-                // 🪄 见证奇迹的时刻：让 Turndown 帮你把 HTML 完美转回带星号、加粗、列表的纯正 Markdown
-                let textBody = turndownService.turndown(art.content);
-                
-                mdContent += `${textBody}\n\n`;
-                mdContent += `🔗 [阅读英文原刊](${art.link})\n\n---\n\n`;
+                htmlContent += `
+                <div class="article">
+                    <h2 class="article-title-zh">${index + 1}. ${art.titleZh}</h2>
+                    <p class="article-title-en">${art.titleEn}</p>
+                    
+                    ${art.metaInfo && !art.metaInfo.includes("未获取") ? `<div class="meta-box">${art.metaInfo}</div>` : ''}
+                    ${art.hook && !art.hook.includes("未获取") ? `<div class="hook-box">🎯 核心洞见：${art.hook}</div>` : ''}
+                    
+                    <div class="content">${art.content}</div>
+                    
+                    <a href="${art.link}" target="_blank" class="read-more">🔗 访问官方阅读英文原刊全文 →</a>
+                </div>
+                `;
             });
 
-            // 生成文件并触发浏览器下载
-            const blob = new Blob([mdContent], { type: "text/markdown;charset=utf-8" });
+            htmlContent += `
+                <div style="text-align: center; color: #999; font-size: 13px; margin-top: 50px;">
+                    - END OF DOCUMENT -
+                </div>
+            </body>
+            </html>`;
+
+            // 3. 触发下载
+            const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `书评集萃_${dateKey.replace(/\s+/g, '')}.md`;
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
