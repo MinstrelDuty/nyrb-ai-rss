@@ -82,50 +82,40 @@ def get_latest_article_urls(existing_urls, max_items=10):
 # ==========================================
 
 def scrape_article(url):
-    """双轨抓取：先尝试直连，失败后瞬间切入网页快照（Wayback Machine）绕过防火墙"""
-    logging.info(f"🌀 启动 Jina 提取正文 -> {url}")
+    """伪装谷歌爬虫直连抓取 (脱离 Jina 代理)"""
+    logging.info(f"🕵️‍♂️ 启动 [谷歌机器人伪装] 尝试直取正文 -> {url}")
     
-    # ==========================================
-    # 💥 路线一：常规直连 (撞大运模式)
-    # ==========================================
+    # 终极伪装服：把自己伪装成 Google 官方的爬虫，并且是从 Google 搜索点进去的
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+        "Referer": "https://www.google.com/",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    }
+    
     try:
-        jina_url = f"https://r.jina.ai/{url}"
-        headers = {"Accept": "text/plain"}
-        response = requests.get(jina_url, headers=headers, timeout=30)
-        text = response.text
+        # 直接访问纽约时报，不通过 Jina
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
         
-        # 如果长度大于 800，说明没被墙，直接成功返回！
+        # 使用 BeautifulSoup 解析 HTML
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # 纽约时报的正文通常都在 <p class="css-ax5frank"> 或 <p class="evys1bk0"> 这种标签里
+        # 我们直接无差别提取所有段落的纯文本
+        paragraphs = soup.find_all('p')
+        text = "\n".join([p.get_text() for p in paragraphs])
+        
         if len(text) >= 800:
-            logging.info(f"✅ [路线1-直连] 成功拿到正文！长度 {len(text)} 字符。")
+            logging.info(f"🎉 [伪装成功] 完美骗过防火墙！拿到正文，长度 {len(text)} 字符。")
             fallback_title = url.split('/')[-1].replace('.html', '').replace('-', ' ').title()
             return {"title": fallback_title, "url": url, "text": text}
         else:
-            logging.warning(f"⚠️ [路线1] 被拦截 (仅 {len(text)} 字符)。放弃直连，准备绕道...")
-    except Exception as e:
-        logging.warning(f"⚠️ [路线1] 请求发生错误: {e}")
-
-    # ==========================================
-    # 🚀 路线二：降维打击 (Wayback Machine 历史快照穿透)
-    # ==========================================
-    logging.info("🕵️‍♂️ 启动 [路线2]：正在调用 Wayback Machine 历史快照绕过防火墙...")
-    time.sleep(3) # 稍微停顿一下，防止并发过高
-    try:
-        # 魔法指令 /2/ 表示让 Archive.org 返回它能找到的最新快照
-        wayback_url = f"https://web.archive.org/web/2/{url}"
-        jina_wayback = f"https://r.jina.ai/{wayback_url}"
-        
-        response_wb = requests.get(jina_wayback, headers={"Accept": "text/plain"}, timeout=50)
-        text_wb = response_wb.text
-        
-        if len(text_wb) >= 800:
-            logging.info(f"🎉 [路线2-快照] 完美绕过防火墙！拿到快照文本，长度 {len(text_wb)} 字符。")
-            fallback_title = url.split('/')[-1].replace('.html', '').replace('-', ' ').title()
-            return {"title": fallback_title, "url": url, "text": text_wb}
-        else:
-            logging.error(f"❌ [路线2] 快照穿透也失败了。可能这篇文章刚发布，还没被收录。")
+            logging.warning(f"⚠️ [伪装失败] 依然被 Cloudflare 识破 (仅获取 {len(text)} 字符)。")
             return None
+            
     except Exception as e:
-        logging.error(f"❌ [路线2] 快照请求错误: {e}")
+        logging.error(f"❌ 请求发生错误: {e}")
         return None
 
 def process_with_ai(article_data):
