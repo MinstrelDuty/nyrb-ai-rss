@@ -25,4 +25,4 @@ jobs:
           # 这一行就是把 GitHub 金库里的秘密，赋值给环境变量 DEEPSEEK_API_KEY
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }} 
         run: |
-          python test_nyt_single.py
+          python test_wayback_only.py
