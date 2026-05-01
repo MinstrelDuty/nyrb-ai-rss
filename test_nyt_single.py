@@ -19,7 +19,10 @@ def fetch_real_text_via_jina(url):
         response = requests.get(jina_url, headers=headers, timeout=30)
         response.raise_for_status()
         text = response.text
-        print(f"✅ 成功获取！文本长度: {len(text)} 字符。预览: {text[:100].replace('\n', ' ')}...")
+        # 先在外面把预览文本处理好，替换掉换行符
+        preview_text = text[:100].replace('\n', ' ')
+        # 然后再把干净的变量放进 f-string 里
+        print(f"✅ 成功获取！文本长度: {len(text)} 字符。预览: {preview_text}...")
         return text
     except Exception as e:
         print(f"❌ [获取失败]: {e}")
