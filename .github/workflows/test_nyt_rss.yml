@@ -25,7 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # 注意：这次除了 requests 和 markdown，千万别忘了 openai
-          pip install requests markdown openai
+          pip install requests markdown openai beautifulsoup4
 
       - name: 🚀 运行 NYT 测试脚本 (抽取 10 篇)
         env:
