@@ -43,7 +43,7 @@ jobs:
           echo "==== 运行泰晤士文学增刊 (TLS) ===="
           python "tls_rss.py" || true
           
-          echo "==== 运行纽约时报书评 (NYT) ===="
+       
          
 
       - name: Commit and push XML files
