@@ -7,7 +7,7 @@ import markdown
 # ==========================================
 # 🎯 靶场配置区 (在这里换上你想测试的任意 NYT 链接)
 # ==========================================
-TARGET_URL = "https://www.nytimes.com/2026/04/29/books/new-books-may.html" # 默认测试这篇容易翻车的书单
+TARGET_URL = "https://www.nytimes.com/2026/04/29/books/review/japanese-gothic-kylie-lee-baker.html" # 默认测试这篇容易翻车的书单
 API_URL = "https://api.deepseek.com/chat/completions" 
 
 def fetch_real_text_via_jina(url):
