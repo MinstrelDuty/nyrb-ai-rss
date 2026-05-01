@@ -44,7 +44,7 @@ jobs:
           python "tls_rss.py" || true
           
           echo "==== 运行纽约时报书评 (NYT) ===="
-          python "nyt_rss.py" || true
+         
 
       - name: Commit and push XML files
         run: |
