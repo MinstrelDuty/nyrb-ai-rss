@@ -82,42 +82,51 @@ def get_latest_article_urls(existing_urls, max_items=10):
 # ==========================================
 
 def scrape_article(url):
-    """带重试机制和反爬伪装的 Jina 抓取"""
+    """双轨抓取：先尝试直连，失败后瞬间切入网页快照（Wayback Machine）绕过防火墙"""
     logging.info(f"🌀 启动 Jina 提取正文 -> {url}")
     
-    # 最多尝试 3 次，每次失败后休息一会再试
-    for attempt in range(3):
-        try:
-            jina_url = f"https://r.jina.ai/{url}"
-            # 加上更真实的浏览器伪装头
-            headers = {
-                "Accept": "text/plain",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
-            response = requests.get(jina_url, headers=headers, timeout=40)
-            response.raise_for_status()
-            text = response.text
-            
-            # 如果抓回来的字数少于 800，说明这次被墙了，抛出异常触发重试
-            if len(text) < 800:
-                raise ValueError(f"抓取文本过短 ({len(text)} 字符)，疑似遇到 Cloudflare 拦截。")
-
-            preview = text[:100].replace('\n', ' ')
-            logging.info(f"✅ 第 {attempt + 1} 次尝试获取成功！长度 {len(text)} 字符。")
-            
+    # ==========================================
+    # 💥 路线一：常规直连 (撞大运模式)
+    # ==========================================
+    try:
+        jina_url = f"https://r.jina.ai/{url}"
+        headers = {"Accept": "text/plain"}
+        response = requests.get(jina_url, headers=headers, timeout=30)
+        text = response.text
+        
+        # 如果长度大于 800，说明没被墙，直接成功返回！
+        if len(text) >= 800:
+            logging.info(f"✅ [路线1-直连] 成功拿到正文！长度 {len(text)} 字符。")
             fallback_title = url.split('/')[-1].replace('.html', '').replace('-', ' ').title()
             return {"title": fallback_title, "url": url, "text": text}
-            
-        except Exception as e:
-            logging.warning(f"⚠️ 第 {attempt + 1} 次尝试失败: {e}")
-            if attempt < 2:
-                # 随机休眠 10 到 20 秒，模仿人类的随机浏览行为
-                sleep_time = random.uniform(10, 20)
-                logging.info(f"💤 伪装休眠 {sleep_time:.1f} 秒后重试...")
-                time.sleep(sleep_time)
-            else:
-                logging.error(f"❌ 彻底抓取失败: {url}")
-                return None
+        else:
+            logging.warning(f"⚠️ [路线1] 被拦截 (仅 {len(text)} 字符)。放弃直连，准备绕道...")
+    except Exception as e:
+        logging.warning(f"⚠️ [路线1] 请求发生错误: {e}")
+
+    # ==========================================
+    # 🚀 路线二：降维打击 (Wayback Machine 历史快照穿透)
+    # ==========================================
+    logging.info("🕵️‍♂️ 启动 [路线2]：正在调用 Wayback Machine 历史快照绕过防火墙...")
+    time.sleep(3) # 稍微停顿一下，防止并发过高
+    try:
+        # 魔法指令 /2/ 表示让 Archive.org 返回它能找到的最新快照
+        wayback_url = f"https://web.archive.org/web/2/{url}"
+        jina_wayback = f"https://r.jina.ai/{wayback_url}"
+        
+        response_wb = requests.get(jina_wayback, headers={"Accept": "text/plain"}, timeout=50)
+        text_wb = response_wb.text
+        
+        if len(text_wb) >= 800:
+            logging.info(f"🎉 [路线2-快照] 完美绕过防火墙！拿到快照文本，长度 {len(text_wb)} 字符。")
+            fallback_title = url.split('/')[-1].replace('.html', '').replace('-', ' ').title()
+            return {"title": fallback_title, "url": url, "text": text_wb}
+        else:
+            logging.error(f"❌ [路线2] 快照穿透也失败了。可能这篇文章刚发布，还没被收录。")
+            return None
+    except Exception as e:
+        logging.error(f"❌ [路线2] 快照请求错误: {e}")
+        return None
 
 def process_with_ai(article_data):
     """URL路由分流 + 调用双轨提示词 + 正则精确切割"""
