@@ -35,7 +35,7 @@ jobs:
         run: |
           # 依次运行四大爬虫，加上 || true 防止某个网站宕机导致整个流程崩溃
           echo "==== 运行纽约书评 (NYRB) ===="
-          python "nyrbrss.py" || true
+          python "nyrb_rss.py" || true
           
           echo "==== 运行伦敦书评 (LRB) ===="
           python "lrb_rss.py" || true
