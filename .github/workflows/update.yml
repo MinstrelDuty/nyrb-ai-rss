@@ -1,72 +1,58 @@
-name: 📚 全自动书评精读流水线
+name: 📚 四大刊物 AI 精读引擎 (NYRB, LRB, TLS, NYT)
 
 on:
   schedule:
-    # 比如：每周二、周五早上 8点 (UTC) 更新
-    - cron: '0 8 * * 2,5'
-  workflow_dispatch:
-
-
-
-
+    # 按照你习惯的频率：每周一、周四自动运行
+    - cron: '0 8 * * 1,4' 
+  workflow_dispatch: # 允许随时手动点击运行
 
 jobs:
-  update-reviews:
+  build:
     runs-on: ubuntu-latest
     
-    # ⚠️ 核心权限：允许 Actions 机器人将生成的文件推送回你的仓库
+    # ⚠️ 确保 GitHub Actions 拥有推送代码的权限（新版 GitHub 仓库必备）
     permissions:
       contents: write
 
     steps:
-      - name: 📥 获取最新仓库代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # 获取完整历史记录，防止 push 时产生冲突
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: 🐍 配置 Python 3.10 环境
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: 📦 安装所有核心依赖库
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # 包含了你所有脚本需要的库：请求、正则、XML解析、OpenAI 以及 Markdown 转换
-          pip install requests markdown openai beautifulsoup4
+          # 融合了你之前所需的 feedgen 和现在新增的 markdown 库
+          pip install requests beautifulsoup4 feedgen openai markdown
 
-      - name: 🚀 启动四大刊物 AI 精读引擎
+      - name: Run Python scripts
         env:
-          # 必须在仓库的 Settings -> Secrets and variables -> Actions 中配置此密钥
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
-          echo "==== 启动纽约书评 (NYRB) ===="
-          python nyrb_rss.py || echo "⚠️ NYRB 运行遇到问题，跳过并继续执行"
+          # 依次运行四大爬虫，加上 || true 防止某个网站宕机导致整个流程崩溃
+          echo "==== 运行纽约书评 (NYRB) ===="
+          python "nyrbrss.py" || true
           
-          echo "==== 启动伦敦书评 (LRB) ===="
-          python lrb_rss.py || echo "⚠️ LRB 运行遇到问题，跳过并继续执行"
+          echo "==== 运行伦敦书评 (LRB) ===="
+          python "lrb_rss.py" || true
           
-          echo "==== 启动泰晤士文学增刊 (TLS) ===="
-          python tls_rss.py || echo "⚠️ TLS 运行遇到问题，跳过并继续执行"
+          echo "==== 运行泰晤士文学增刊 (TLS) ===="
+          python "tls_rss.py" || true
           
-          echo "==== 启动纽约时报书评 (NYT) ===="
-          python nyt_rss.py || echo "⚠️ NYT 运行遇到问题，跳过并继续执行"
+          echo "==== 运行纽约时报书评 (NYT) ===="
+          python "nyt_rss.py" || true
 
-      - name: 💾 自动存档并发布到前端
+      - name: Commit and push XML files
         run: |
-          # 伪装成官方机器人进行代码提交
-          git config --local user.name "github-actions[bot]"
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           
-          # 将 AI 新生成的 XML 数据和防重复的 txt 记录本全部加入暂存区
-          git add *_ai_enhanced.xml
-          git add *_processed_urls.txt
+          # 📦 1. 只打包生成的 xml 文件，完全抛弃可能会报错的 txt 记录本
+          git add *.xml
           
-          # 智能拦截：检查是否有文件变动。如果今天没有新文章，就不报错直接安静退出。
-          if ! git diff-index --quiet HEAD; then
-            git commit -m "🤖 自动更新：四大刊物 AI 深度精读版 [skip ci]"
-            git push
-            echo "✅ 所有新文章已成功编译为 XML 并推送到仓库！前端页面即刻生效。"
-          else
-            echo "💤 今日四大刊物均无更新，流水线进入休眠。"
-          fi
+          # 🚀 2. 完美的单行判定逻辑：如果有新生成的 XML 内容，就自动打包推送！
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update 4 Magazines AI RSS feeds" && git push)
