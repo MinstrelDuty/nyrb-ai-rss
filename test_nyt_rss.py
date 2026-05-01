@@ -7,6 +7,7 @@ import markdown
 import xml.etree.ElementTree as ET
 from email.utils import formatdate
 from openai import OpenAI
+import random
 
 # ==========================================
 # 0. 基础配置
@@ -81,25 +82,42 @@ def get_latest_article_urls(existing_urls, max_items=10):
 # ==========================================
 
 def scrape_article(url):
-    """通过 Jina API 穿透 NYT 网页结构，提取纯净正文"""
+    """带重试机制和反爬伪装的 Jina 抓取"""
     logging.info(f"🌀 启动 Jina 提取正文 -> {url}")
-    try:
-        jina_url = f"https://r.jina.ai/{url}"
-        headers = {"Accept": "text/plain"}
-        response = requests.get(jina_url, headers=headers, timeout=40)
-        response.raise_for_status()
-        text = response.text
-        
-        # 规避 f-string 反斜杠报错，提前处理预览文本
-        preview = text[:100].replace('\n', ' ')
-        logging.info(f"✅ 获取成功！长度 {len(text)} 字符。预览: {preview}...")
-        
-        # 用 URL 最后一段作为临时原版标题
-        fallback_title = url.split('/')[-1].replace('.html', '').replace('-', ' ').title()
-        return {"title": fallback_title, "url": url, "text": text}
-    except Exception as e:
-        logging.error(f"抓取正文失败: {url} - {e}")
-        return None
+    
+    # 最多尝试 3 次，每次失败后休息一会再试
+    for attempt in range(3):
+        try:
+            jina_url = f"https://r.jina.ai/{url}"
+            # 加上更真实的浏览器伪装头
+            headers = {
+                "Accept": "text/plain",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            response = requests.get(jina_url, headers=headers, timeout=40)
+            response.raise_for_status()
+            text = response.text
+            
+            # 如果抓回来的字数少于 800，说明这次被墙了，抛出异常触发重试
+            if len(text) < 800:
+                raise ValueError(f"抓取文本过短 ({len(text)} 字符)，疑似遇到 Cloudflare 拦截。")
+
+            preview = text[:100].replace('\n', ' ')
+            logging.info(f"✅ 第 {attempt + 1} 次尝试获取成功！长度 {len(text)} 字符。")
+            
+            fallback_title = url.split('/')[-1].replace('.html', '').replace('-', ' ').title()
+            return {"title": fallback_title, "url": url, "text": text}
+            
+        except Exception as e:
+            logging.warning(f"⚠️ 第 {attempt + 1} 次尝试失败: {e}")
+            if attempt < 2:
+                # 随机休眠 10 到 20 秒，模仿人类的随机浏览行为
+                sleep_time = random.uniform(10, 20)
+                logging.info(f"💤 伪装休眠 {sleep_time:.1f} 秒后重试...")
+                time.sleep(sleep_time)
+            else:
+                logging.error(f"❌ 彻底抓取失败: {url}")
+                return None
 
 def process_with_ai(article_data):
     """URL路由分流 + 调用双轨提示词 + 正则精确切割"""
