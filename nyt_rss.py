@@ -49,7 +49,7 @@ def get_existing_items():
     return existing_urls, existing_items_xml
 
 
-def get_latest_article_urls(existing_urls, max_items=20):
+def get_latest_article_urls(existing_urls, max_items=30):
     """抓取纽约时报书评的官方 RSS 并在源头清洗链接"""
     urls = []
     try:
@@ -193,8 +193,8 @@ def main():
 
     existing_urls, existing_items_xml = get_existing_items()
 
-    # NYT 单次处理篇数建议控制在 10 篇左右，保护 API
-    urls = get_latest_article_urls(existing_urls, max_items=10)
+    # NYT 单次处理篇数建议控制在 30 篇左右，保护 API
+    urls = get_latest_article_urls(existing_urls, max_items=30)
 
     if not urls:
         logging.info("🎉 当前期 NYT 所有文章已处理完毕或无更新。本次未消耗 AI Token。")
