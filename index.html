@@ -217,10 +217,22 @@
                             
                         } else {
                             // 3. 新版 DeepSeek 解析引擎
-                            titleZh = extractSection(desc, "中文标题") || "💡 深度精读推荐"; // 找不到就给个好听的名字
+                            // 3. 新版 DeepSeek 解析引擎
+                            titleZh = extractSection(desc, "中文标题");
                             metaInfo = extractSection(desc, "作者与对象");
                             hook = extractSection(desc, "一句话破题");
                             
+                            // 🌟 动态智能回退：如果没抓到标题，就去“探讨对象”里“借”一个！
+                            if (!titleZh) {
+                                const targetMatch = metaInfo.match(/探讨对象[：:]\s*([^｜\|]+)/);
+                                if (targetMatch && targetMatch[1]) {
+                                    // 清理一下文字两端可能自带的书名号，防止变成《《xxx》》
+                                    const cleanTarget = targetMatch[1].trim().replace(/^[《<]/, '').replace(/[》>]$/, '');
+                                    titleZh = `《${cleanTarget}》深度精读`;
+                                } else {
+                                    titleZh = "💡 深度精读推荐";
+                                }
+                            }
                             // 提取正文内容并用 marked 渲染为 HTML
                             const contentSplit = desc.split(/【正文】/);
                             let rawMarkdown = contentSplit.length > 1 ? contentSplit[1] : desc;
