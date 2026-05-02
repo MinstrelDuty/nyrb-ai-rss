@@ -162,9 +162,9 @@
             URL.revokeObjectURL(url);
         }
 
-        // 🌟 用于从 DeepSeek 新版格式中抽取数据的正则引擎
+       // 🌟 增强版正则引擎：无视 AI 的排版小脾气（支持同行、冒号、换行）
         function extractSection(text, header) {
-            const regex = new RegExp(`【${header}】\\s*\\n([^【]+)`);
+            const regex = new RegExp(`【${header}】[:：\\s]*([^【]+)`);
             const match = text.match(regex);
             return match ? match[1].trim() : "";
         }
@@ -198,18 +198,26 @@
 
                         let titleZh = "", metaInfo = "", hook = "", content = "";
 
-                        // 🌟 双核引擎：判断是老文件(有|||) 还是 新版纽约时报(纯文本)
+                        // 🌟 三重智能分支：旧文件 / 抓取失败 / AI 新版格式
                         if (desc.includes("|||")) {
-                            // 旧版解析引擎
+                            // 1. 旧版解析引擎
                             const parts = desc.split("|||");
                             titleZh = parts[0]?.trim() || "解析失败";
                             metaInfo = parts[1]?.trim() || "";
                             hook = parts[2]?.trim() || "";
                             let contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
                             content = contentNode ? contentNode.textContent : "<p>无正文</p>";
+                            
+                        } else if (desc.includes("未能成功抓取") || desc.includes("AI 处理超时")) {
+                            // 2. 🌟 新增容错：如果是抓取失败的条目，优雅地展示错误
+                            titleZh = "⚠️ 原文特殊或抓取受限";
+                            metaInfo = "系统提示";
+                            hook = "本文可能为多媒体交互页面或遭遇深度拦截";
+                            content = `<p style="color:#d32f2f; font-weight:bold;">${desc.replace("<![CDATA[", "").replace("]]>", "")}</p>`;
+                            
                         } else {
-                            // 🌟 新版 DeepSeek 解析引擎
-                            titleZh = extractSection(desc, "中文标题") || "未命名精读";
+                            // 3. 新版 DeepSeek 解析引擎
+                            titleZh = extractSection(desc, "中文标题") || "💡 深度精读推荐"; // 找不到就给个好听的名字
                             metaInfo = extractSection(desc, "作者与对象");
                             hook = extractSection(desc, "一句话破题");
                             
