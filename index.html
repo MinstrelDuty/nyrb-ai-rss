@@ -181,13 +181,23 @@
                 .then(response => response.text())
                 .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
                 .then(data => {
-                    const items = data.querySelectorAll("item");
-                    if (items.length === 0) {
+                    // 🌟 1. 将数据转为数组，并强制按真实时间戳从新到旧排序！
+                    let itemsArray = Array.from(data.querySelectorAll("item"));
+                    if (itemsArray.length === 0) {
                         contentDiv.innerHTML = "<div class='loading' style='color:red;'>暂无文章。</div>";
                         return;
                     }
+
+                    itemsArray.sort((a, b) => {
+                        let tA = new Date(a.querySelector("pubDate")?.textContent || 0).getTime();
+                        let tB = new Date(b.querySelector("pubDate")?.textContent || 0).getTime();
+                        return tB - tA; // 确保最新的日期排在最上面
+                    });
                     
-                    items.forEach(item => {
+                    // 🌟 2. 使用 Map 结构（严格保证插入顺序不会被打乱）
+                    issueDataStore = new Map();
+
+                    itemsArray.forEach(item => {
                         const titleEn = item.querySelector("title")?.textContent || "Untitled";
                         const pubDate = item.querySelector("pubDate")?.textContent || "未知时间";
                         const link = item.querySelector("link")?.textContent || "#";
@@ -199,7 +209,6 @@
 
                         // 🌟 三重智能分支：旧文件 / 抓取失败 / AI 新版格式
                         if (desc.includes("|||")) {
-                            // 1. 旧版解析引擎
                             const parts = desc.split("|||");
                             titleZh = parts[0]?.trim() || "解析失败";
                             metaInfo = parts[1]?.trim() || "";
@@ -208,44 +217,42 @@
                             content = contentNode ? contentNode.textContent : "<p>无正文</p>";
                             
                         } else if (desc.includes("未能成功抓取") || desc.includes("AI 处理超时")) {
-                            // 2. 🌟 新增容错：如果是抓取失败的条目，优雅地展示错误
                             titleZh = "⚠️ 原文特殊或抓取受限";
                             metaInfo = "系统提示";
                             hook = "本文可能为多媒体交互页面或遭遇深度拦截";
                             content = `<p style="color:#d32f2f; font-weight:bold;">${desc.replace("<![CDATA[", "").replace("]]>", "")}</p>`;
                             
                         } else {
-                            // 3. 新版 DeepSeek 解析引擎
-                            // 3. 新版 DeepSeek 解析引擎
                             titleZh = extractSection(desc, "中文标题");
                             metaInfo = extractSection(desc, "作者与对象");
                             hook = extractSection(desc, "一句话破题");
                             
-                            // 🌟 动态智能回退：如果没抓到标题，就去“探讨对象”里“借”一个！
                             if (!titleZh) {
                                 const targetMatch = metaInfo.match(/探讨对象[：:]\s*([^｜\|]+)/);
                                 if (targetMatch && targetMatch[1]) {
-                                    // 清理一下文字两端可能自带的书名号，防止变成《《xxx》》
                                     const cleanTarget = targetMatch[1].trim().replace(/^[《<]/, '').replace(/[》>]$/, '');
                                     titleZh = `《${cleanTarget}》深度精读`;
                                 } else {
                                     titleZh = "💡 深度精读推荐";
                                 }
                             }
-                            // 提取正文内容并用 marked 渲染为 HTML
+                            
                             const contentSplit = desc.split(/【正文】/);
                             let rawMarkdown = contentSplit.length > 1 ? contentSplit[1] : desc;
-                          // 🌟 智能橡皮擦：把旧文件里残留的“小尾巴”暴力抹除！
                             rawMarkdown = rawMarkdown.replace(/<hr>\s*<i>注：本文由专属 Python 引擎自动提取并排版。<\/i>/g, "").trim();
                             content = window.marked ? marked.parse(rawMarkdown) : `<pre>${rawMarkdown}</pre>`;
                         }
 
-                        if (!issueDataStore[dateKey]) issueDataStore[dateKey] = [];
-                        issueDataStore[dateKey].push({ titleEn, titleZh, metaInfo, hook, link, content });
+                        // 🌟 3. 将数据按顺序塞入 Map
+                        if (!issueDataStore.has(dateKey)) {
+                            issueDataStore.set(dateKey, []);
+                        }
+                        issueDataStore.get(dateKey).push({ titleEn, titleZh, metaInfo, hook, link, content });
                     });
 
                     let html = "";
-                    for (const [dateKey, articles] of Object.entries(issueDataStore)) {
+                    // 🌟 4. 遍历 Map 渲染，现在的顺序绝对是完美的倒序！
+                    for (const [dateKey, articles] of issueDataStore.entries()) {
                         html += `
                             <div class="issue-group">
                                 <div class="issue-header">
