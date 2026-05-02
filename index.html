@@ -66,11 +66,10 @@
         <div class="header">
             <h1>📚 书评深度集萃</h1>
             <div class="nav-tabs">
-                <!-- 🌟 新增：把我们的纽约时报文件挂载上去！(确保文件名和你生成的对应) -->
-                <button class="nav-btn active" onclick="loadFeed('nyt_ai_enhanced.xml', this)">纽时书评</button>
-                <button class="nav-btn" onclick="loadFeed('nyrb_ai_enhanced.xml', this)">纽约书评</button>
+                <button class="nav-btn active" onclick="loadFeed('nyrb_ai_enhanced.xml', this)">纽约书评</button>
                 <button class="nav-btn" onclick="loadFeed('lrb_ai_enhanced.xml', this)">伦敦书评</button>
-                <button class="nav-btn" onclick="loadFeed('tls_ai_enhanced.xml', this)">泰晤士文学增刊</button>
+                <button class="nav-btn" onclick="loadFeed('tls_ai_enhanced.xml', this)">泰晤士文学增刊</button>            
+                <button class="nav-btn" onclick="loadFeed('nyt_ai_enhanced.xml', this)">纽时书评</button>
             </div>
         </div> 
         
@@ -287,7 +286,7 @@
         }
 
         // 默认打开刚做好的纽约时报
-        window.onload = () => loadFeed('nyt_ai_enhanced.xml', document.querySelector('.nav-btn.active'));
+        window.onload = () => loadFeed('nyrb_ai_enhanced.xml', document.querySelector('.nav-btn.active'));
     </script>
 </body>
 </html>
