@@ -236,6 +236,8 @@
                             // 提取正文内容并用 marked 渲染为 HTML
                             const contentSplit = desc.split(/【正文】/);
                             let rawMarkdown = contentSplit.length > 1 ? contentSplit[1] : desc;
+                          // 🌟 智能橡皮擦：把旧文件里残留的“小尾巴”暴力抹除！
+                            rawMarkdown = rawMarkdown.replace(/<hr>\s*<i>注：本文由专属 Python 引擎自动提取并排版。<\/i>/g, "").trim();
                             content = window.marked ? marked.parse(rawMarkdown) : `<pre>${rawMarkdown}</pre>`;
                         }
 
