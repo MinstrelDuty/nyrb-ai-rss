@@ -66,6 +66,7 @@
         <div class="header">
             <h1>📚 书评深度集萃</h1>
             <div class="nav-tabs">
+                <!-- 这里的 XML 文件名你可以根据实际情况随时改 -->
                 <button class="nav-btn active" onclick="loadFeed('nyrb_ai_enhanced.xml', this)">纽约书评</button>
                 <button class="nav-btn" onclick="loadFeed('lrb_ai_enhanced.xml', this)">伦敦书评</button>
                 <button class="nav-btn" onclick="loadFeed('tls_ai_enhanced.xml', this)">泰晤士文学增刊</button>            
@@ -77,7 +78,8 @@
     </div> 
 
     <script>
-        let issueDataStore = {};
+        // 初始化变量
+        let issueDataStore = new Map();
 
         function toggleCard(headerElement) {
             const card = headerElement.parentElement;
@@ -91,14 +93,27 @@
             }
         }
 
-       // 完美的独立沉浸式阅读版生成引擎 (保持不变)
+       // 🌟 升级版：完美的独立沉浸式阅读版生成引擎
         function downloadIssue(dateKey) {
-            const articles = issueDataStore[dateKey];
-            if (!articles) return;
+            // 兼容 Map 取值，修复你旧代码中取不到数据的 Bug
+            let articles = issueDataStore.get(dateKey);
+            let finalDate = dateKey;
+
+            // 防呆设计：如果传入的日期不存在，自动拿最新的那一期数据
+            if (!articles || articles.length === 0) {
+                const availableDates = Array.from(issueDataStore.keys());
+                if (availableDates.length === 0) {
+                    alert("❌ 下载失败：当前页面还没加载到任何数据！");
+                    return;
+                }
+                finalDate = availableDates[0];
+                articles = issueDataStore.get(finalDate);
+            }
+
             const activeTab = document.querySelector('.nav-btn.active');
-            const sourceName = activeTab ? activeTab.innerText : "综合";
-            const safeDateKey = dateKey.replace(/\s+/g, '');
-            const fileName = `[${sourceName}]_书评深度集萃_${safeDateKey}.html`;
+            const sourceName = activeTab ? activeTab.innerText : "书评精读";
+            const safeDateKey = finalDate.replace(/[\s\/\:\*\?\"\<\>\|]+/g, '_');
+            const fileName = `[${sourceName}]_深度书评集萃_${safeDateKey}.html`;
 
             let htmlContent = `
             <!DOCTYPE html>
@@ -107,20 +122,22 @@
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>${sourceName} - 深度精读</title>
+                <!-- 引入轻量级 Markdown 解析库，让离线网页也能解析 AI 排版 -->
+                <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
                 <style>
-                    body { max-width: 800px; margin: 0 auto; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.8; color: #333; background-color: #fdfdfd; }
+                    body { max-width: 800px; margin: 0 auto; padding: 40px 20px; font-family: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.8; color: #333; background-color: #fdfdfd; }
                     .cover { text-align: center; border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 50px; }
                     .cover h1 { font-size: 32px; margin-bottom: 10px; color: #111; }
                     .cover p { color: #666; font-size: 16px; }
                     .article { margin-bottom: 60px; padding-bottom: 40px; border-bottom: 1px dashed #ddd; page-break-after: always; }
                     .article-title-zh { font-size: 24px; color: #111; margin: 0 0 8px 0; font-weight: bold; }
                     .article-title-en { font-size: 16px; color: #666; font-style: italic; margin: 0 0 15px 0; }
-                    .meta-box { background: #f4f5f7; padding: 12px 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; color: #555; font-weight: 500; }
+                    .meta-box { background: #f4f5f7; padding: 12px 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; color: #555; }
                     .hook-box { border-left: 4px solid #d32f2f; padding: 12px 15px; background: #fff5f5; color: #d32f2f; font-weight: bold; margin-bottom: 25px; border-radius: 0 6px 6px 0; }
-                    .content h3 { color: #222; font-size: 18px; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #111; padding-left: 10px; }
+                    .content { font-size: 16px; margin-top: 15px; }
+                    .content h3 { color: #111; font-size: 18px; border-left: 4px solid #111; padding-left: 10px; margin-top: 1.5em; margin-bottom: 0.5em; }
                     .content p { margin-bottom: 15px; text-align: justify; }
-                    .content ul { padding-left: 20px; }
-                    .content li { margin-bottom: 8px; }
+                    .content strong { background: rgba(255, 235, 59, 0.4); padding: 0 4px; border-radius: 2px; color: #000; font-weight: bold; }
                     .read-more { margin-top: 30px; display: inline-block; color: #0366d6; text-decoration: none; font-weight: bold; font-size: 15px; }
                     .read-more:hover { text-decoration: underline; }
                 </style>
@@ -128,29 +145,46 @@
             <body>
                 <div class="cover">
                     <h1>📚 ${sourceName} · 深度精读</h1>
-                    <p>收录期数：${dateKey} | 自动归档生成</p>
+                    <p>收录期数：${finalDate} | AI 全自动归档生成</p>
                 </div>
             `;
 
             articles.forEach((art, index) => {
+                const safeContent = encodeURIComponent(art.content || '');
                 htmlContent += `
                 <div class="article">
-                    <h2 class="article-title-zh">${index + 1}. ${art.titleZh}</h2>
-                    <p class="article-title-en">${art.titleEn}</p>
-                    ${art.metaInfo ? `<div class="meta-box">${art.metaInfo}</div>` : ''}
-                    ${art.hook ? `<div class="hook-box">🎯 核心洞见：${art.hook}</div>` : ''}
-                    <div class="content">${art.content}</div>
-                    <a href="${art.link}" target="_blank" class="read-more">🔗 访问官方阅读英文原刊全文 →</a>
+                    <h2 class="article-title-zh">${index + 1}. ${art.titleZh || '深度长文'}</h2>
+                    ${art.titleEn ? `<p class="article-title-en">${art.titleEn}</p>` : ''}
+                    ${art.metaInfo && !art.metaInfo.includes("未获取") ? `<div class="meta-box">${art.metaInfo}</div>` : ''}
+                    ${art.hook && !art.hook.includes("未获取") ? `<div class="hook-box">🎯 核心洞见：${art.hook}</div>` : ''}
+                    <!-- 巧妙的占位符：把内容藏在 div 里，让离线网页自己去渲染 Markdown -->
+                    <div class="content markdown-body" data-md="${safeContent}"></div>
+                    ${art.link ? `<a href="${art.link}" target="_blank" class="read-more">🔗 访问英文原刊全文 →</a>` : ''}
                 </div>
                 `;
             });
 
             htmlContent += `
                 <div style="text-align: center; color: #999; font-size: 13px; margin-top: 50px;">- END OF DOCUMENT -</div>
+                <script>
+                    // 离线文件打开时，自动将暂存的数据变身精美排版！
+                    window.onload = function() {
+                        document.querySelectorAll('.markdown-body').forEach(el => {
+                            try {
+                                const rawMd = decodeURIComponent(el.getAttribute('data-md'));
+                                el.innerHTML = typeof marked !== 'undefined' ? marked.parse(rawMd) : rawMd;
+                            } catch(e) {
+                                console.error('Markdown解析出错啦', e);
+                                el.innerText = "内容加载出错";
+                            }
+                        });
+                    };
+                <\/script>
             </body>
             </html>`;
 
-            const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+            // 🌟 终极乱码杀手：加入 \uFEFF BOM 头，强行让 Windows 识别 UTF-8
+            const blob = new Blob(['\uFEFF', htmlContent], { type: "text/html;charset=utf-8" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
@@ -175,7 +209,7 @@
             const contentDiv = document.getElementById("content");
             contentDiv.innerHTML = "<div class='loading'>正在拉取数据中... 🚀</div>";
             
-            issueDataStore = {};
+            issueDataStore = new Map(); // 确保每次刷新都重置
 
             fetch(xmlFile + '?t=' + new Date().getTime())
                 .then(response => response.text())
@@ -193,9 +227,6 @@
                         let tB = new Date(b.querySelector("pubDate")?.textContent || 0).getTime();
                         return tB - tA; // 确保最新的日期排在最上面
                     });
-                    
-                    // 🌟 2. 使用 Map 结构（严格保证插入顺序不会被打乱）
-                    issueDataStore = new Map();
 
                     itemsArray.forEach(item => {
                         const titleEn = item.querySelector("title")?.textContent || "Untitled";
@@ -243,7 +274,7 @@
                             content = window.marked ? marked.parse(rawMarkdown) : `<pre>${rawMarkdown}</pre>`;
                         }
 
-                        // 🌟 3. 将数据按顺序塞入 Map
+                        // 🌟 3. 将数据按顺序塞入 Map[cite: 1]
                         if (!issueDataStore.has(dateKey)) {
                             issueDataStore.set(dateKey, []);
                         }
@@ -292,7 +323,7 @@
                 });
         }
 
-        // 默认打开刚做好的纽约时报
+        // 默认打开
         window.onload = () => loadFeed('nyrb_ai_enhanced.xml', document.querySelector('.nav-btn.active'));
     </script>
 </body>
