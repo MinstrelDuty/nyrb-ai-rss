@@ -95,11 +95,9 @@
 
        // 🌟 升级版：完美的独立沉浸式阅读版生成引擎
         function downloadIssue(dateKey) {
-            // 兼容 Map 取值，修复你旧代码中取不到数据的 Bug
             let articles = issueDataStore.get(dateKey);
             let finalDate = dateKey;
 
-            // 防呆设计：如果传入的日期不存在，自动拿最新的那一期数据
             if (!articles || articles.length === 0) {
                 const availableDates = Array.from(issueDataStore.keys());
                 if (availableDates.length === 0) {
@@ -122,10 +120,9 @@
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>${sourceName} - 深度精读</title>
-                <!-- 引入轻量级 Markdown 解析库，让离线网页也能解析 AI 排版 -->
-                <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
                 <style>
-                    body { max-width: 800px; margin: 0 auto; padding: 40px 20px; font-family: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.8; color: #333; background-color: #fdfdfd; }
+                    /* 纯静态 CSS，完美兼容 Zotero 阅读器 */
+                    body { max-width: 800px; margin: 0 auto; padding: 40px 20px; font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; line-height: 1.8; color: #333; background-color: #fdfdfd; }
                     .cover { text-align: center; border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 50px; }
                     .cover h1 { font-size: 32px; margin-bottom: 10px; color: #111; }
                     .cover p { color: #666; font-size: 16px; }
@@ -139,7 +136,6 @@
                     .content p { margin-bottom: 15px; text-align: justify; }
                     .content strong { background: rgba(255, 235, 59, 0.4); padding: 0 4px; border-radius: 2px; color: #000; font-weight: bold; }
                     .read-more { margin-top: 30px; display: inline-block; color: #0366d6; text-decoration: none; font-weight: bold; font-size: 15px; }
-                    .read-more:hover { text-decoration: underline; }
                 </style>
             </head>
             <body>
@@ -150,15 +146,16 @@
             `;
 
             articles.forEach((art, index) => {
-                const safeContent = encodeURIComponent(art.content || '');
+                // 核心变化：直接注入已经解析好的纯静态 HTML，不要任何 JS！
                 htmlContent += `
                 <div class="article">
                     <h2 class="article-title-zh">${index + 1}. ${art.titleZh || '深度长文'}</h2>
                     ${art.titleEn ? `<p class="article-title-en">${art.titleEn}</p>` : ''}
                     ${art.metaInfo && !art.metaInfo.includes("未获取") ? `<div class="meta-box">${art.metaInfo}</div>` : ''}
                     ${art.hook && !art.hook.includes("未获取") ? `<div class="hook-box">🎯 核心洞见：${art.hook}</div>` : ''}
-                    <!-- 巧妙的占位符：把内容藏在 div 里，让离线网页自己去渲染 Markdown -->
-                    <div class="content markdown-body" data-md="${safeContent}"></div>
+                    
+                    <div class="content">${art.content}</div>
+                    
                     ${art.link ? `<a href="${art.link}" target="_blank" class="read-more">🔗 访问英文原刊全文 →</a>` : ''}
                 </div>
                 `;
@@ -166,24 +163,9 @@
 
             htmlContent += `
                 <div style="text-align: center; color: #999; font-size: 13px; margin-top: 50px;">- END OF DOCUMENT -</div>
-                <script>
-                    // 离线文件打开时，自动将暂存的数据变身精美排版！
-                    window.onload = function() {
-                        document.querySelectorAll('.markdown-body').forEach(el => {
-                            try {
-                                const rawMd = decodeURIComponent(el.getAttribute('data-md'));
-                                el.innerHTML = typeof marked !== 'undefined' ? marked.parse(rawMd) : rawMd;
-                            } catch(e) {
-                                console.error('Markdown解析出错啦', e);
-                                el.innerText = "内容加载出错";
-                            }
-                        });
-                    };
-                <\/script>
             </body>
             </html>`;
 
-            // 🌟 终极乱码杀手：加入 \uFEFF BOM 头，强行让 Windows 识别 UTF-8
             const blob = new Blob(['\uFEFF', htmlContent], { type: "text/html;charset=utf-8" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
