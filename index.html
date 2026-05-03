@@ -92,29 +92,14 @@
         }
 
        // 完美的独立沉浸式阅读版生成引擎 (保持不变)
-       function downloadIssue(dateKey) {
-            // 【升级1】防呆设计：如果按钮传入的旧日期找不到，就自动抓取最新的那一期！
-            let articles = issueDataStore[dateKey];
-            let finalDate = dateKey;
-
-            if (!articles) {
-                const availableDates = Object.keys(issueDataStore);
-                if (availableDates.length === 0) {
-                    alert("❌ 下载失败：当前页面还没加载到任何数据！");
-                    return;
-                }
-                // 自动拿数组里的第一个（即最新的一期数据）
-                finalDate = availableDates[0];
-                articles = issueDataStore[finalDate];
-            }
-
+        function downloadIssue(dateKey) {
+            const articles = issueDataStore[dateKey];
+            if (!articles) return;
             const activeTab = document.querySelector('.nav-btn.active');
-            const sourceName = activeTab ? activeTab.innerText : "纽约时报精读";
-            // 把日期里的空格和非法字符替换掉，防止下载的文件名乱码
-            const safeDateKey = finalDate.replace(/[\s\/\:\*\?\"\<\>\|]+/g, '_');
-            const fileName = `[${sourceName}]_深度书评集萃_${safeDateKey}.html`;
+            const sourceName = activeTab ? activeTab.innerText : "综合";
+            const safeDateKey = dateKey.replace(/\s+/g, '');
+            const fileName = `[${sourceName}]_书评深度集萃_${safeDateKey}.html`;
 
-            // 【升级2】在离线 HTML 里内置 Markdown 解析器，完美展示你的 AI 优美排版
             let htmlContent = `
             <!DOCTYPE html>
             <html lang="zh-CN">
@@ -122,23 +107,20 @@
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>${sourceName} - 深度精读</title>
-                <!-- 引入轻量级 Markdown 解析库 -->
-                <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
                 <style>
-                    body { max-width: 800px; margin: 0 auto; padding: 40px 20px; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.8; color: #333; background-color: #fdfdfd; }
+                    body { max-width: 800px; margin: 0 auto; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.8; color: #333; background-color: #fdfdfd; }
                     .cover { text-align: center; border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 50px; }
                     .cover h1 { font-size: 32px; margin-bottom: 10px; color: #111; }
                     .cover p { color: #666; font-size: 16px; }
                     .article { margin-bottom: 60px; padding-bottom: 40px; border-bottom: 1px dashed #ddd; page-break-after: always; }
                     .article-title-zh { font-size: 24px; color: #111; margin: 0 0 8px 0; font-weight: bold; }
                     .article-title-en { font-size: 16px; color: #666; font-style: italic; margin: 0 0 15px 0; }
-                    .meta-box { background: #f4f5f7; padding: 12px 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; color: #555; }
-                    .hook-box { border-left: 4px solid #d32f2f; padding: 12px 15px; background: #fff5f5; color: #d32f2f; font-weight: bold; margin-bottom: 25px; }
-                    .content { font-size: 16px; margin-top: 15px; }
-                    /* 针对大模型 Markdown 输出的专属样式优化 */
-                    .content h3 { color: #111; font-size: 18px; border-left: 4px solid #111; padding-left: 10px; margin-top: 1.5em; margin-bottom: 0.5em; }
+                    .meta-box { background: #f4f5f7; padding: 12px 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; color: #555; font-weight: 500; }
+                    .hook-box { border-left: 4px solid #d32f2f; padding: 12px 15px; background: #fff5f5; color: #d32f2f; font-weight: bold; margin-bottom: 25px; border-radius: 0 6px 6px 0; }
+                    .content h3 { color: #222; font-size: 18px; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #111; padding-left: 10px; }
                     .content p { margin-bottom: 15px; text-align: justify; }
-                    .content strong { background: rgba(255, 235, 59, 0.4); padding: 0 4px; border-radius: 2px; color: #000; font-weight: bold; }
+                    .content ul { padding-left: 20px; }
+                    .content li { margin-bottom: 8px; }
                     .read-more { margin-top: 30px; display: inline-block; color: #0366d6; text-decoration: none; font-weight: bold; font-size: 15px; }
                     .read-more:hover { text-decoration: underline; }
                 </style>
@@ -146,42 +128,25 @@
             <body>
                 <div class="cover">
                     <h1>📚 ${sourceName} · 深度精读</h1>
-                    <p>收录期数：${finalDate} | AI 全自动归档生成</p>
+                    <p>收录期数：${dateKey} | 自动归档生成</p>
                 </div>
             `;
 
             articles.forEach((art, index) => {
-                // 将文本转码，防止原文里的单双引号破坏代码结构
-                const safeContent = encodeURIComponent(art.content || '');
                 htmlContent += `
                 <div class="article">
-                    <h2 class="article-title-zh">${index + 1}. ${art.titleZh || '深度长文'}</h2>
-                    ${art.titleEn ? `<p class="article-title-en">${art.titleEn}</p>` : ''}
+                    <h2 class="article-title-zh">${index + 1}. ${art.titleZh}</h2>
+                    <p class="article-title-en">${art.titleEn}</p>
                     ${art.metaInfo ? `<div class="meta-box">${art.metaInfo}</div>` : ''}
                     ${art.hook ? `<div class="hook-box">🎯 核心洞见：${art.hook}</div>` : ''}
-                    <!-- 巧妙的占位符：把内容藏在 div 里，让离线网页自己去渲染 Markdown -->
-                    <div class="content markdown-body" data-md="${safeContent}"></div>
-                    ${art.link ? `<a href="${art.link}" target="_blank" class="read-more">🔗 访问英文原刊全文 →</a>` : ''}
+                    <div class="content">${art.content}</div>
+                    <a href="${art.link}" target="_blank" class="read-more">🔗 访问官方阅读英文原刊全文 →</a>
                 </div>
                 `;
             });
 
             htmlContent += `
                 <div style="text-align: center; color: #999; font-size: 13px; margin-top: 50px;">- END OF DOCUMENT -</div>
-                <script>
-                    // 离线文件打开时，自动将暂存的数据变身精美排版！
-                    window.onload = function() {
-                        document.querySelectorAll('.markdown-body').forEach(el => {
-                            try {
-                                const rawMd = decodeURIComponent(el.getAttribute('data-md'));
-                                el.innerHTML = typeof marked !== 'undefined' ? marked.parse(rawMd) : rawMd;
-                            } catch(e) {
-                                console.error('Markdown解析出错啦', e);
-                                el.innerText = "内容加载出错";
-                            }
-                        });
-                    };
-                </script>
             </body>
             </html>`;
 
