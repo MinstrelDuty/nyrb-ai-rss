@@ -1,312 +1,265 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
-    <title>书评深度集萃</title>
-    
-    <!-- 原来的工具 -->
-    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
-    <!-- 🌟 新增黑科技：引入 marked.js，让网页瞬间解析大模型的 Markdown 排版！ -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    
-    <style>
-        *, *::before, *::after { box-sizing: border-box; }
-        body { background-color: #f4f5f7; color: #333; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.8; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: transparent; padding: 0; width: 100%; }
-        .header { text-align: center; margin-bottom: 30px; padding: 40px; background: #fff; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; }
-        
-        .header h1 { font-size: 32px; color: #111; margin-bottom: 10px; font-weight: 800; letter-spacing: 2px; }
-        
-        .nav-tabs { display: flex; justify-content: center; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
-        .nav-btn { background: #f0f2f5; border: none; padding: 10px 25px; border-radius: 30px; font-size: 16px; color: #555; cursor: pointer; transition: all 0.2s; font-weight: bold; }
-        .nav-btn:hover { background: #e4e6eb; }
-        .nav-btn.active { background: #111; color: #fff; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="纽约书评、伦敦书评、泰晤士文学增刊与纽约时报书评的 AI 中文精读归档。">
+  <title>书评深度集萃</title>
+  <link rel="icon" href="data:,">
+  <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f4f6;
+      --surface: #ffffff;
+      --text: #171717;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --soft: #f8fafc;
+      --accent: #18181b;
+      --red: #b91c1c;
+      --red-soft: #fff1f2;
+      --blue: #1d4ed8;
+      --shadow: 0 8px 30px rgba(15, 23, 42, 0.07);
+    }
 
-        .issue-group { margin-bottom: 50px; width: 100%; }
-        .issue-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; margin-top: 30px; }
-        .issue-title { font-size: 22px; font-weight: bold; color: #222; margin: 0; }
-        .download-btn { background: #111; color: white; border: none; padding: 8px 18px; border-radius: 20px; font-size: 14px; cursor: pointer; transition: background 0.2s; font-weight: bold; }
-        .download-btn:hover { background: #444; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.75;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .container { width: min(920px, 100%); margin: 0 auto; }
+    .header {
+      padding: 36px;
+      background: var(--surface);
+      border: 1px solid rgba(229, 231, 235, 0.8);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+    .eyebrow {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0; font-size: clamp(28px, 5vw, 40px); line-height: 1.2; letter-spacing: 0.04em; }
+    .subtitle { margin: 10px 0 0; color: var(--muted); }
+    .nav-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+    .nav-btn, .scope-btn, .archive-btn, .download-btn {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--soft);
+      color: #4b5563;
+      font-weight: 700;
+      transition: 160ms ease;
+    }
+    .nav-btn { padding: 9px 18px; }
+    .nav-btn:hover, .scope-btn:hover, .archive-btn:hover, .download-btn:hover { border-color: #a1a1aa; }
+    .nav-btn.active, .scope-btn.active, .archive-btn.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+    }
+    .reader-tools {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
+    .search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
+    #searchInput {
+      min-width: 0;
+      width: 100%;
+      padding: 13px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      background: white;
+      color: var(--text);
+      outline: none;
+    }
+    #searchInput:focus { border-color: #52525b; box-shadow: 0 0 0 3px rgba(82, 82, 91, 0.12); }
+    .scope-switch {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+    }
+    .scope-btn { padding: 8px 13px; border: 0; border-radius: 8px; }
+    .tool-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+    #resultCount { margin-right: auto; color: var(--muted); font-size: 14px; }
+    .archive-btn, .download-btn { padding: 8px 14px; }
+    button:disabled { cursor: wait; opacity: 0.58; }
+    .notice {
+      margin: 18px 0 0;
+      padding: 12px 16px;
+      border: 1px solid #fde68a;
+      border-radius: 12px;
+      background: #fffbeb;
+      color: #92400e;
+      font-size: 14px;
+    }
+    .loading, .empty-state {
+      margin-top: 24px;
+      padding: 48px 24px;
+      border-radius: 16px;
+      background: var(--surface);
+      color: var(--muted);
+      text-align: center;
+      box-shadow: 0 3px 16px rgba(15, 23, 42, 0.04);
+    }
+    .empty-state.error { color: var(--red); }
+    .issue-group, .search-results { margin-top: 34px; }
+    .issue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #d4d4d8;
+    }
+    .issue-title, .search-heading { margin: 0; font-size: 21px; }
+    .search-heading { margin-bottom: 16px; font-weight: 800; }
+    .article-card {
+      margin-bottom: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(229, 231, 235, 0.9);
+      border-radius: 15px;
+      background: var(--surface);
+      box-shadow: 0 3px 14px rgba(15, 23, 42, 0.04);
+    }
+    .article-header {
+      display: flex;
+      width: 100%;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 23px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+    }
+    .article-header:hover { background: #fdfdfd; }
+    .article-title-wrap { display: block; min-width: 0; flex: 1; }
+    .source-badge {
+      display: inline-block;
+      margin-bottom: 8px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #e0e7ff;
+      color: #3730a3;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .article-title-en {
+      display: block;
+      color: #71717a;
+      font-family: Georgia, serif;
+      font-size: 15px;
+      font-style: italic;
+      line-height: 1.5;
+    }
+    .article-title-zh { display: block; margin: 5px 0 12px; font-size: 22px; font-weight: 850; line-height: 1.35; }
+    .article-meta-author {
+      display: inline-block;
+      margin-bottom: 12px;
+      padding: 5px 10px;
+      border-radius: 7px;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 13px;
+    }
+    .article-hook {
+      display: block;
+      margin-bottom: 12px;
+      padding: 9px 13px;
+      border-left: 4px solid var(--red);
+      border-radius: 6px;
+      background: var(--red-soft);
+      color: var(--red);
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .article-meta { display: flex; flex-wrap: wrap; gap: 14px; color: #9ca3af; font-size: 13px; }
+    .original-link { color: var(--blue); text-decoration: none; }
+    .search-snippet { margin: 0 0 12px; color: #52525b; font-size: 14px; }
+    mark { padding: 0 2px; border-radius: 3px; background: #fef08a; color: inherit; }
+    .toggle-icon { flex: 0 0 auto; color: #a1a1aa; font-size: 24px; transition: transform 180ms ease; }
+    .article-body { display: none; padding: 0 24px 28px; border-top: 1px dashed var(--line); }
+    .article-card.open .article-body { display: block; }
+    .article-card.open .toggle-icon { transform: rotate(180deg); }
+    .article-content { padding-top: 22px; color: #303036; font-size: 16px; }
+    .article-content h3 { margin: 28px 0 14px; padding-left: 11px; border-left: 4px solid var(--accent); color: #18181b; }
+    .article-content img { max-width: 100%; height: auto; border-radius: 10px; }
+    .article-content a { color: var(--blue); }
+    .article-content blockquote { margin-left: 0; padding-left: 16px; border-left: 3px solid #d4d4d8; color: #52525b; }
+    .article-content pre { overflow-x: auto; white-space: pre-wrap; }
 
-        .article-card { background: #fff; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden; transition: box-shadow 0.3s; width: 100%; }
-        .article-card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
-        
-        .article-header { padding: 25px; cursor: pointer; display: flex; justify-content: space-between; align-items: flex-start; background: #fff; transition: background 0.2s; }
-        .article-header:hover { background: #fdfdfd; }
-        .article-title-wrap { flex: 1; padding-right: 25px; }
-        
-        .article-title-en { font-size: 16px; color: #777; margin: 0 0 5px 0; font-family: Georgia, serif; line-height: 1.4; font-style: italic; }
-        .article-title-zh { font-size: 22px; color: #111; margin: 0 0 12px 0; font-weight: 800; line-height: 1.3; }
-        .article-meta-author { font-size: 14px; color: #555; background: #f0f2f5; padding: 6px 12px; border-radius: 6px; margin-bottom: 15px; display: inline-block; font-weight: 500; }
-        .article-hook { font-size: 15px; color: #d32f2f; background: #fff5f5; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #d32f2f; margin-bottom: 15px; line-height: 1.6; font-weight: 500; }
-        
-        .article-meta { font-size: 13px; color: #999; display: flex; gap: 15px; }
-        .article-meta a { color: #0366d6; text-decoration: none; }
-        
-        .toggle-icon { font-size: 20px; color: #bbb; transition: transform 0.3s ease; margin-top: 5px; }
-        .article-card.open .toggle-icon { transform: rotate(180deg); }
-
-        .article-body { padding: 0 25px 30px 25px; display: none; border-top: 1px dashed #eee; margin-top: 10px; padding-top: 25px; }
-        .article-content { font-size: 16px; color: #333; }
-        
-        /* 🌟 针对 AI 格式优化的排版 */
-        .article-content h3 { border-left: 4px solid #111; padding-left: 10px; margin-top: 25px; margin-bottom: 15px; font-size: 18px; color: #111; }
-        .article-content hr { border: none; border-top: 1px dashed #ccc; margin: 30px 0; }
-        .article-content ul { padding-left: 20px; }
-        .article-content li { margin-bottom: 8px; }
-        .article-content strong { color: #111; background-color: rgba(255,215,0,0.2); padding: 0 3px; border-radius: 3px; }
-        
-        .loading { text-align: center; font-size: 16px; color: #888; padding: 50px; background: #fff; border-radius: 12px; margin-top: 20px; width: 100%; }
-    </style>
+    @media (max-width: 640px) {
+      body { padding: 12px; }
+      .header { padding: 24px 18px; border-radius: 16px; }
+      .search-row { grid-template-columns: 1fr; }
+      .scope-switch { width: 100%; }
+      .scope-btn { flex: 1; }
+      .tool-row { align-items: stretch; }
+      #resultCount { width: 100%; margin: 0; }
+      .archive-btn { flex: 1 1 100%; }
+      .issue-header { align-items: flex-start; flex-direction: column; }
+      .download-btn { width: 100%; }
+      .article-header { padding: 19px 17px; }
+      .article-body { padding: 0 17px 22px; }
+      .article-title-zh { font-size: 19px; }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📚 书评深度集萃</h1>
-            <div class="nav-tabs">
-                <!-- 这里的 XML 文件名你可以根据实际情况随时改 -->
-                <button class="nav-btn active" onclick="loadFeed('nyrb_ai_enhanced.xml', this)">纽约书评</button>
-                <button class="nav-btn" onclick="loadFeed('lrb_ai_enhanced.xml', this)">伦敦书评</button>
-                <button class="nav-btn" onclick="loadFeed('tls_ai_enhanced.xml', this)">泰晤士文学增刊</button>            
-                <button class="nav-btn" onclick="loadFeed('nyt_ai_enhanced.xml', this)">纽时书评</button>
-            </div>
-        </div> 
-        
-        <div id="content" class="loading">正在解码顶尖思想... ⏳</div>
-    </div> 
+  <main class="container">
+    <header class="header">
+      <p class="eyebrow">AI Review Archive</p>
+      <h1>📚 书评深度集萃</h1>
+      <p class="subtitle">四种书评刊物的中文精读、全文检索与 Obsidian 归档。</p>
 
-    <script>
-        // 初始化变量
-        let issueDataStore = new Map();
+      <nav class="nav-tabs" aria-label="刊物选择">
+        <button class="nav-btn active" type="button" data-source="nyrb">纽约书评</button>
+        <button class="nav-btn" type="button" data-source="lrb">伦敦书评</button>
+        <button class="nav-btn" type="button" data-source="tls">泰晤士文学增刊</button>
+        <button class="nav-btn" type="button" data-source="nyt">纽时书评</button>
+      </nav>
 
-        function toggleCard(headerElement) {
-            const card = headerElement.parentElement;
-            const body = card.querySelector('.article-body');
-            if (card.classList.contains('open')) {
-                body.style.display = 'none';
-                card.classList.remove('open');
-            } else {
-                body.style.display = 'block';
-                card.classList.add('open');
-            }
-        }
+      <section class="reader-tools" aria-label="检索与归档">
+        <div class="search-row">
+          <input id="searchInput" type="search" placeholder="检索标题、作者、破题与全文…" autocomplete="off">
+          <div class="scope-switch" role="group" aria-label="检索范围">
+            <button class="scope-btn active" type="button" data-scope="current">当前刊物</button>
+            <button class="scope-btn" type="button" data-scope="all">全部四刊</button>
+          </div>
+        </div>
+        <div class="tool-row">
+          <span id="resultCount" aria-live="polite"></span>
+          <button id="downloadCurrentArchive" class="archive-btn" type="button">下载当前刊物归档</button>
+          <button id="downloadAllArchive" class="archive-btn primary" type="button">下载全部四刊归档</button>
+        </div>
+      </section>
+      <div id="notice" class="notice" hidden></div>
+    </header>
 
-       // 🌟 升级版：完美的独立沉浸式阅读版生成引擎
-        function downloadIssue(dateKey) {
-            let articles = issueDataStore.get(dateKey);
-            let finalDate = dateKey;
+    <div id="content" class="loading">正在加载书评档案…</div>
+  </main>
 
-            if (!articles || articles.length === 0) {
-                const availableDates = Array.from(issueDataStore.keys());
-                if (availableDates.length === 0) {
-                    alert("❌ 下载失败：当前页面还没加载到任何数据！");
-                    return;
-                }
-                finalDate = availableDates[0];
-                articles = issueDataStore.get(finalDate);
-            }
-
-            const activeTab = document.querySelector('.nav-btn.active');
-            const sourceName = activeTab ? activeTab.innerText : "书评精读";
-            const safeDateKey = finalDate.replace(/[\s\/\:\*\?\"\<\>\|]+/g, '_');
-            const fileName = `[${sourceName}]_深度书评集萃_${safeDateKey}.html`;
-
-            let htmlContent = `
-            <!DOCTYPE html>
-            <html lang="zh-CN">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>${sourceName} - 深度精读</title>
-                <style>
-                    /* 纯静态 CSS，完美兼容 Zotero 阅读器 */
-                    body { max-width: 800px; margin: 0 auto; padding: 40px 20px; font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; line-height: 1.8; color: #333; background-color: #fdfdfd; }
-                    .cover { text-align: center; border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 50px; }
-                    .cover h1 { font-size: 32px; margin-bottom: 10px; color: #111; }
-                    .cover p { color: #666; font-size: 16px; }
-                    .article { margin-bottom: 60px; padding-bottom: 40px; border-bottom: 1px dashed #ddd; page-break-after: always; }
-                    .article-title-zh { font-size: 24px; color: #111; margin: 0 0 8px 0; font-weight: bold; }
-                    .article-title-en { font-size: 16px; color: #666; font-style: italic; margin: 0 0 15px 0; }
-                    .meta-box { background: #f4f5f7; padding: 12px 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; color: #555; }
-                    .hook-box { border-left: 4px solid #d32f2f; padding: 12px 15px; background: #fff5f5; color: #d32f2f; font-weight: bold; margin-bottom: 25px; border-radius: 0 6px 6px 0; }
-                    .content { font-size: 16px; margin-top: 15px; }
-                    .content h3 { color: #111; font-size: 18px; border-left: 4px solid #111; padding-left: 10px; margin-top: 1.5em; margin-bottom: 0.5em; }
-                    .content p { margin-bottom: 15px; text-align: justify; }
-                    .content strong { background: rgba(255, 235, 59, 0.4); padding: 0 4px; border-radius: 2px; color: #000; font-weight: bold; }
-                    .read-more { margin-top: 30px; display: inline-block; color: #0366d6; text-decoration: none; font-weight: bold; font-size: 15px; }
-                </style>
-            </head>
-            <body>
-                <div class="cover">
-                    <h1>📚 ${sourceName} · 深度精读</h1>
-                    <p>收录期数：${finalDate} | AI 全自动归档生成</p>
-                </div>
-            `;
-
-            articles.forEach((art, index) => {
-                // 核心变化：直接注入已经解析好的纯静态 HTML，不要任何 JS！
-                htmlContent += `
-                <div class="article">
-                    <h2 class="article-title-zh">${index + 1}. ${art.titleZh || '深度长文'}</h2>
-                    ${art.titleEn ? `<p class="article-title-en">${art.titleEn}</p>` : ''}
-                    ${art.metaInfo && !art.metaInfo.includes("未获取") ? `<div class="meta-box">${art.metaInfo}</div>` : ''}
-                    ${art.hook && !art.hook.includes("未获取") ? `<div class="hook-box">🎯 核心洞见：${art.hook}</div>` : ''}
-                    
-                    <div class="content">${art.content}</div>
-                    
-                    ${art.link ? `<a href="${art.link}" target="_blank" class="read-more">🔗 访问英文原刊全文 →</a>` : ''}
-                </div>
-                `;
-            });
-
-            htmlContent += `
-                <div style="text-align: center; color: #999; font-size: 13px; margin-top: 50px;">- END OF DOCUMENT -</div>
-            </body>
-            </html>`;
-
-            const blob = new Blob(['\uFEFF', htmlContent], { type: "text/html;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-       // 🌟 增强版正则引擎：无视 AI 的排版小脾气（支持同行、冒号、换行）
-        function extractSection(text, header) {
-            const regex = new RegExp(`【${header}】[:：\\s]*([^【]+)`);
-            const match = text.match(regex);
-            return match ? match[1].trim() : "";
-        }
-
-        function loadFeed(xmlFile, btnElement) {
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            if(btnElement) btnElement.classList.add('active');
-
-            const contentDiv = document.getElementById("content");
-            contentDiv.innerHTML = "<div class='loading'>正在拉取数据中... 🚀</div>";
-            
-            issueDataStore = new Map(); // 确保每次刷新都重置
-
-            fetch(xmlFile + '?t=' + new Date().getTime())
-                .then(response => response.text())
-                .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
-                .then(data => {
-                    // 🌟 1. 将数据转为数组，并强制按真实时间戳从新到旧排序！
-                    let itemsArray = Array.from(data.querySelectorAll("item"));
-                    if (itemsArray.length === 0) {
-                        contentDiv.innerHTML = "<div class='loading' style='color:red;'>暂无文章。</div>";
-                        return;
-                    }
-
-                    itemsArray.sort((a, b) => {
-                        let tA = new Date(a.querySelector("pubDate")?.textContent || 0).getTime();
-                        let tB = new Date(b.querySelector("pubDate")?.textContent || 0).getTime();
-                        return tB - tA; // 确保最新的日期排在最上面
-                    });
-
-                    itemsArray.forEach(item => {
-                        const titleEn = item.querySelector("title")?.textContent || "Untitled";
-                        const pubDate = item.querySelector("pubDate")?.textContent || "未知时间";
-                        const link = item.querySelector("link")?.textContent || "#";
-                        const desc = item.querySelector("description")?.textContent || "";
-                        
-                        const dateKey = new Date(pubDate).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) + " 更新";
-
-                        let titleZh = "", metaInfo = "", hook = "", content = "";
-
-                        // 🌟 三重智能分支：旧文件 / 抓取失败 / AI 新版格式
-                        if (desc.includes("|||")) {
-                            const parts = desc.split("|||");
-                            titleZh = parts[0]?.trim() || "解析失败";
-                            metaInfo = parts[1]?.trim() || "";
-                            hook = parts[2]?.trim() || "";
-                            let contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
-                            content = contentNode ? contentNode.textContent : "<p>无正文</p>";
-                            
-                        } else if (desc.includes("未能成功抓取") || desc.includes("AI 处理超时")) {
-                            titleZh = "⚠️ 原文特殊或抓取受限";
-                            metaInfo = "系统提示";
-                            hook = "本文可能为多媒体交互页面或遭遇深度拦截";
-                            content = `<p style="color:#d32f2f; font-weight:bold;">${desc.replace("<![CDATA[", "").replace("]]>", "")}</p>`;
-                            
-                        } else {
-                            titleZh = extractSection(desc, "中文标题");
-                            metaInfo = extractSection(desc, "作者与对象");
-                            hook = extractSection(desc, "一句话破题");
-                            
-                            if (!titleZh) {
-                                const targetMatch = metaInfo.match(/探讨对象[：:]\s*([^｜\|]+)/);
-                                if (targetMatch && targetMatch[1]) {
-                                    const cleanTarget = targetMatch[1].trim().replace(/^[《<]/, '').replace(/[》>]$/, '');
-                                    titleZh = `《${cleanTarget}》深度精读`;
-                                } else {
-                                    titleZh = "💡 深度精读推荐";
-                                }
-                            }
-                            
-                            const contentSplit = desc.split(/【正文】/);
-                            let rawMarkdown = contentSplit.length > 1 ? contentSplit[1] : desc;
-                            rawMarkdown = rawMarkdown.replace(/<hr>\s*<i>注：本文由专属 Python 引擎自动提取并排版。<\/i>/g, "").trim();
-                            content = window.marked ? marked.parse(rawMarkdown) : `<pre>${rawMarkdown}</pre>`;
-                        }
-
-                        // 🌟 3. 将数据按顺序塞入 Map[cite: 1]
-                        if (!issueDataStore.has(dateKey)) {
-                            issueDataStore.set(dateKey, []);
-                        }
-                        issueDataStore.get(dateKey).push({ titleEn, titleZh, metaInfo, hook, link, content });
-                    });
-
-                    let html = "";
-                    // 🌟 4. 遍历 Map 渲染，现在的顺序绝对是完美的倒序！
-                    for (const [dateKey, articles] of issueDataStore.entries()) {
-                        html += `
-                            <div class="issue-group">
-                                <div class="issue-header">
-                                    <h2 class="issue-title">📖 ${dateKey} · 共 ${articles.length} 篇</h2>
-                                    <button class="download-btn" onclick="downloadIssue('${dateKey}')">📥 下载本期 (html)</button>
-                                </div>
-                        `;
-
-                        articles.forEach(art => {
-                            html += `
-                                <div class="article-card">
-                                    <div class="article-header" onclick="toggleCard(this)">
-                                        <div class="article-title-wrap">
-                                            <h3 class="article-title-en">${art.titleEn}</h3>
-                                            ${art.titleZh && !art.titleZh.includes("解析失败") ? `<h2 class="article-title-zh">${art.titleZh}</h2>` : ''}
-                                            ${art.metaInfo && !art.metaInfo.includes("未获取") ? `<div class="article-meta-author">${art.metaInfo}</div>` : ''}
-                                            ${art.hook && !art.hook.includes("未获取") ? `<div class="article-hook">🎯 ${art.hook}</div>` : ''}
-                                            <div class="article-meta">
-                                                <span>🔗 <a href="${art.link}" target="_blank" onclick="event.stopPropagation();">阅读原刊</a></span>
-                                            </div>
-                                        </div>
-                                        <div class="toggle-icon">▼</div>
-                                    </div>
-                                    <div class="article-body">
-                                        <div class="article-content">${art.content}</div>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        html += `</div>`;
-                    }
-                    contentDiv.innerHTML = html;
-                })
-                .catch(error => {
-                    console.error(error);
-                    contentDiv.innerHTML = `<div class='loading' style='color:red;'>加载失败，请检查网络或配置。</div>`;
-                });
-        }
-
-        // 默认打开
-        window.onload = () => loadFeed('nyrb_ai_enhanced.xml', document.querySelector('.nav-btn.active'));
-    </script>
+  <script src="web-core.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
