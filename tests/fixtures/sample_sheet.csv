@@ -1,0 +1,15 @@
+source,url,original_title,title_zh,author_subject,hook,body_markdown,article_date,processed_at,image_url,status
+NYRB,https://example.com/nyrb/first?utm_source=sheet,First Article,第一篇,作者与对象,一句话破题,"### 核心脉络
+
+第一行
+第二行",2026-08-30,2026-09-01T08:00:00+08:00,,published
+NYRB,https://example.com/nyrb/first#comments,First Article,重复篇,作者与对象,重复的一句话,重复正文,2026-08-30,2026-09-01T08:01:00+08:00,,published
+NYT,https://www.nytimes.com/2026/08/31/books/review/example.html,NYT Example,纽约时报例文,作者与对象,NYT 一句话,"### 核心脉络
+
+NYT 正文第一行
+NYT 正文第二行",2026-08-31,2026-09-01T08:02:00+08:00,https://example.com/image.jpg,published
+ATLANTIC,https://www.theatlantic.com/books/archive/2026/08/example/999999/,Atlantic Example,暂不发布,作者与对象,暂不发布,"### 核心脉络
+
+不进入正式归档",2026-08-31,2026-09-01T08:03:00+08:00,,partial
+LRB,https://www.lrb.co.uk/the-paper/v48/n12/missing,Missing Article,,作者与对象,缺标题,正文,2026-08-31,2026-09-01T08:04:00+08:00,,published
+UNKNOWN,https://example.com/unknown/article,Unknown Source,未知来源,作者与对象,一句话,正文,2026-08-31,2026-09-01T08:05:00+08:00,,published
