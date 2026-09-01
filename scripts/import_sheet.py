@@ -14,7 +14,10 @@ from typing import Iterable, Mapping
 
 import requests
 
-from .utils import article_filename, canonicalize_url, render_frontmatter, stable_article_id
+try:
+    from .utils import article_filename, canonicalize_url, render_frontmatter, stable_article_id
+except ImportError:  # direct invocation: python scripts/import_sheet.py
+    from utils import article_filename, canonicalize_url, render_frontmatter, stable_article_id
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -82,7 +85,10 @@ def _existing_urls(archive_root: Path) -> set[str]:
     urls: set[str] = set()
     if not archive_root.exists():
         return urls
-    from .utils import parse_frontmatter
+    try:
+        from .utils import parse_frontmatter
+    except ImportError:  # direct invocation: python scripts/import_sheet.py
+        from utils import parse_frontmatter
 
     for path in archive_root.rglob("*.md"):
         try:

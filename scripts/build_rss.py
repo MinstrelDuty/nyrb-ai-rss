@@ -15,7 +15,10 @@ from typing import Iterable, Mapping
 
 import markdown
 
-from .utils import canonicalize_url, parse_frontmatter, stable_article_id
+try:
+    from .utils import canonicalize_url, parse_frontmatter, stable_article_id
+except ImportError:  # direct invocation: python scripts/build_rss.py
+    from utils import canonicalize_url, parse_frontmatter, stable_article_id
 
 
 CONTENT_NAMESPACE = "http://purl.org/rss/1.0/modules/content/"
