@@ -1,0 +1,39 @@
+name: v2 archive and RSS validation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - "data/articles/**"
+      - "app.js"
+      - "index.html"
+      - "requirements.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run Python tests
+        run: python -m pytest -q
+
+      - name: Run JavaScript tests
+        run: node --test "tests/*.test.js"
+
+      - name: Build and parse all eight RSS feeds in a temporary directory
+        run: python scripts/build_rss.py --archive-root data/articles --output-root "$RUNNER_TEMP/rss-v2"
