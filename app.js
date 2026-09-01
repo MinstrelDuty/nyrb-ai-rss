@@ -5,7 +5,11 @@
     { id: 'nyrb', shortName: 'NYRB', name: '纽约书评', file: 'nyrb_ai_enhanced.xml' },
     { id: 'lrb', shortName: 'LRB', name: '伦敦书评', file: 'lrb_ai_enhanced.xml' },
     { id: 'tls', shortName: 'TLS', name: '泰晤士文学增刊', file: 'tls_ai_enhanced.xml' },
-    { id: 'nyt', shortName: 'NYT', name: '纽时书评', file: 'nyt_ai_enhanced.xml' }
+    { id: 'nyt', shortName: 'NYT', name: '纽时书评', file: 'nyt_ai_enhanced.xml' },
+    { id: 'newyorker', shortName: 'NEWYORKER', name: '纽约客', file: 'newyorker_ai_enhanced.xml' },
+    { id: 'atlantic', shortName: 'ATLANTIC', name: '大西洋月刊', file: 'atlantic_ai_enhanced.xml' },
+    { id: 'larb', shortName: 'LARB', name: '洛杉矶书评', file: 'larb_ai_enhanced.xml' },
+    { id: 'publicbooks', shortName: 'PUBLICBOOKS', name: 'Public Books', file: 'publicbooks_ai_enhanced.xml' }
   ];
 
   const feedCache = new Map();
