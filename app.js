@@ -86,6 +86,7 @@
     const link = item.querySelector('link')?.textContent?.trim() || '#';
     const description = item.querySelector('description')?.textContent || '';
     const encodedNode = item.getElementsByTagNameNS('*', 'encoded')[0];
+    const encodedHtml = encodedNode?.textContent?.trim() || '';
     const date = safeDate(pubDate);
 
     let titleZh = '';
@@ -98,7 +99,7 @@
       titleZh = parts[0]?.trim() || '解析失败';
       metaInfo = parts[1]?.trim() || '';
       hook = parts[2]?.trim() || '';
-      contentHtml = encodedNode?.textContent || '<p>无正文</p>';
+      contentHtml = encodedHtml || '<p>无正文</p>';
     } else if (description.includes('未能成功抓取') || description.includes('AI 处理超时')) {
       titleZh = '原文特殊或抓取受限';
       metaInfo = '系统提示';
@@ -115,7 +116,7 @@
       const markdownText = (contentParts.length > 1 ? contentParts[1] : description)
         .replace(/<hr>\s*<i>注：.*?<\/i>/g, '')
         .trim();
-      contentHtml = window.marked ? marked.parse(markdownText) : `<pre>${escapeHtml(markdownText)}</pre>`;
+      contentHtml = encodedHtml || (window.marked ? marked.parse(markdownText) : `<pre>${escapeHtml(markdownText)}</pre>`);
     }
 
     return {
@@ -464,7 +465,7 @@
   });
 
   allArchiveButton.addEventListener('click', () => {
-    withBusyButton(allArchiveButton, '正在整理四刊…', () => downloadAllArchive(allArchiveButton));
+    withBusyButton(allArchiveButton, '正在整理八刊…', () => downloadAllArchive(allArchiveButton));
   });
 
   window.addEventListener('DOMContentLoaded', showActiveSource);

@@ -18,3 +18,16 @@ for (const [id, file, label] of [
     assert.match(html, new RegExp(label));
   });
 }
+
+test('uses eight-source labels for all-source search and archive actions', () => {
+  assert.match(html, /全部八刊/);
+  assert.match(html, /全部八刊归档/);
+  assert.match(app, /正在整理八刊/);
+  assert.doesNotMatch(html, /全部四刊/);
+  assert.doesNotMatch(app, /整理四刊/);
+});
+
+test('uses content encoded HTML when a structured feed omits inline body text', () => {
+  assert.match(app, /const encodedHtml = encodedNode\?\.textContent\?\.trim\(\) \|\| ''/);
+  assert.match(app, /contentHtml = encodedHtml \|\|/);
+});
