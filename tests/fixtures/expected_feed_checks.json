@@ -1,0 +1,10 @@
+{
+  "NYRB": {"file": "nyrb_ai_enhanced.xml", "items": 1},
+  "LRB": {"file": "lrb_ai_enhanced.xml", "items": 0},
+  "TLS": {"file": "tls_ai_enhanced.xml", "items": 0},
+  "NYT": {"file": "nyt_ai_enhanced.xml", "items": 1},
+  "NEWYORKER": {"file": "newyorker_ai_enhanced.xml", "items": 0},
+  "ATLANTIC": {"file": "atlantic_ai_enhanced.xml", "items": 0},
+  "LARB": {"file": "larb_ai_enhanced.xml", "items": 0},
+  "PUBLICBOOKS": {"file": "publicbooks_ai_enhanced.xml", "items": 0}
+}
