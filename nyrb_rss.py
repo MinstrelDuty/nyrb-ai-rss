@@ -1,286 +1,175 @@
-import os
-import re
-import time
+"""Discover NYRB articles and archive their full text as raw Markdown."""
+
+from __future__ import annotations
+
 import logging
+import re
+from pathlib import Path
+from urllib.parse import urljoin
+
 import requests
-import markdown
 from bs4 import BeautifulSoup
-from email.utils import formatdate
-from openai import OpenAI
+from markdownify import markdownify
 
-# ==========================================
-# 0. 基础配置
-# ==========================================
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from scripts.raw_utils import count_paragraphs, get_existing_urls, save_raw_article
+from scripts.utils import canonicalize_url
 
-api_key = os.getenv("DEEPSEEK_API_KEY", "").strip(" '\"\n\r\t")
-client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 
-XML_FILE = 'nyrb_ai_enhanced.xml'  # 如果是 LRB 脚本，这里改成 'lrb_ai_enhanced.xml'
-MAX_HISTORY = 150
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
+SOURCE = "NYRB"
+XML_FILE = Path("nyrb_ai_enhanced.xml")
+RAW_ROOT = Path("raw")
+CURRENT_ISSUE_URL = "https://www.nybooks.com/current-issue/"
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-    "Referer": "https://www.google.com/"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Referer": "https://www.google.com/",
 }
 
+_BODY_SELECTORS = (
+    "[itemprop='articleBody']",
+    ".article-main-content",
+    ".article-content",
+    ".article__body",
+    ".entry-content",
+    "article",
+    "main",
+)
+_FURNITURE = re.compile(
+    r"(?:subscribe|newsletter|related|recommended|promo|paywall|share|social|cookie|footer|navigation)",
+    re.I,
+)
 
-# ==========================================
-# 1. 记忆读取与智能链接嗅探
-# ==========================================
-def get_existing_items():
-    existing_urls = set()
-    existing_items_xml = []
-    if os.path.exists(XML_FILE):
+
+def _meta(soup: BeautifulSoup, *selectors: str) -> str:
+    for selector in selectors:
+        node = soup.select_one(selector)
+        if node and node.get("content"):
+            return str(node["content"]).strip()
+    return ""
+
+
+def _visible_text(soup: BeautifulSoup, selectors: tuple[str, ...]) -> str:
+    for selector in selectors:
+        node = soup.select_one(selector)
+        if node:
+            return node.get_text(" ", strip=True)
+    return ""
+
+
+def _clean_body_markdown(soup: BeautifulSoup) -> str:
+    body = next((node for selector in _BODY_SELECTORS if (node := soup.select_one(selector))), None)
+    if body is None:
+        return ""
+    for node in body.select("script, style, nav, footer, aside, form, button, noscript, svg"):
+        node.decompose()
+    for node in reversed(body.find_all(True)):
+        marker = " ".join(
+            [str(node.get("id", "")), *[str(value) for value in node.get("class", [])]]
+        )
+        if marker and _FURNITURE.search(marker):
+            node.decompose()
+    text = markdownify(str(body), heading_style="ATX").strip()
+    return re.sub(r"\n{3,}", "\n\n", text)
+
+
+def parse_article_html(html: str, url: str) -> dict[str, str | int]:
+    soup = BeautifulSoup(html, "html.parser")
+    title = _visible_text(soup, ("h1",))
+    if not title:
+        title = _meta(soup, "meta[property='og:title']", "meta[name='twitter:title']")
+    if not title:
+        title = url.rstrip("/").rsplit("/", 1)[-1]
+    author = _meta(soup, "meta[name='author']", "meta[property='article:author']")
+    if not author:
+        author = _visible_text(soup, ("[rel='author']", ".byline", ".author"))
+        author = re.sub(r"^\s*by\s+", "", author, flags=re.I).strip()
+    published = _meta(
+        soup,
+        "meta[property='article:published_time']",
+        "meta[name='date']",
+        "meta[name='pub_date']",
+    )
+    if not published:
+        time_node = soup.select_one("time[datetime]")
+        published = str(time_node.get("datetime", "")).strip() if time_node else ""
+    if not re.match(r"\d{4}-\d{2}-\d{2}", published):
+        url_date = re.search(r"/articles/(\d{4})/(\d{2})/(\d{2})/", url)
+        published = "-".join(url_date.groups()) if url_date else ""
+    body = _clean_body_markdown(soup)
+    return {
+        "source": SOURCE,
+        "title": title,
+        "author": author,
+        "url": canonicalize_url(url),
+        "article_date": published[:10] if re.match(r"\d{4}-\d{2}-\d{2}", published) else "",
+        "image_url": _meta(soup, "meta[property='og:image']", "meta[name='twitter:image']"),
+        "text": body,
+        "raw_length": len(html),
+        "paragraph_count": count_paragraphs(body),
+    }
+
+
+def parse_latest_article_urls(
+    html: str, existing_urls: set[str], max_items: int = 50
+) -> list[str]:
+    urls: list[str] = []
+    soup = BeautifulSoup(html, "html.parser")
+    for anchor in soup.find_all("a", href=True):
+        href = str(anchor["href"])
+        if not re.search(r"/articles/\d{4}/\d{2}/\d{2}/", href):
+            continue
         try:
-            with open(XML_FILE, 'r', encoding='utf-8') as f:
-                content = f.read()
-            item_blocks = re.findall(r'<item>.*?</item>', content, re.DOTALL)
-            for block in item_blocks:
-                existing_items_xml.append(block)
-                link_match = re.search(r'<link>(.*?)</link>', block)
-                if link_match:
-                    existing_urls.add(link_match.group(1).strip())
-        except Exception as e:
-            pass
-    return existing_urls, existing_items_xml
-
-
-def get_latest_article_urls(existing_urls, max_items=50):
-    urls = []
-    try:
-        # 🎯 极客技巧：访问这个固定网址，服务器会自动把我们带到“最新一期”的专属页面！
-        target_url = "https://www.nybooks.com/current-issue/"
-        logging.info(f"正在扫描纽约书评最新一期目录: {target_url}")
-
-        response = requests.get(target_url, headers=HEADERS, timeout=15)
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        for a_tag in soup.find_all('a', href=True):
-            href = a_tag['href']
-
-            # 🚀 修复点 1：把 match 换成 search，不论开头是 http 还是 / 都能认出来！
-            if re.search(r'/articles/\d{4}/\d{2}/\d{2}/', href):
-
-                # 🚀 修复点 2：智能拼接完整网址
-                if href.startswith('/'):
-                    full_url = f"https://www.nybooks.com{href}"
-                elif href.startswith('http'):
-                    full_url = href
-                else:
-                    continue
-
-                # 顺手砍掉链接尾部可能带有的评论锚点（防重复抓取）
-                full_url = full_url.split('#')[0]
-
-                # 🧠 核心排队逻辑
-                if full_url not in urls and full_url not in existing_urls:
-                    urls.append(full_url)
-                    if len(urls) >= max_items:
-                        break
-    except Exception as e:
-        logging.error(f"抓取链接失败: {e}")
-
-    logging.info(f"队列计算完毕，NYRB 本次共有 {len(urls)} 篇新文章需要处理。")
+            url = canonicalize_url(urljoin("https://www.nybooks.com", href))
+        except ValueError:
+            continue
+        if url not in existing_urls and url not in urls:
+            urls.append(url)
+            if len(urls) >= max_items:
+                break
     return urls
-# ==========================================
-# 2. 核心引擎：正文抓取与 AI 深度处理
-# ==========================================
 
-def scrape_article(url):
-    """广角抓取正文，完美兼容万字长文与短篇诗歌"""
+
+def get_latest_article_urls(existing_urls: set[str], max_items: int = 50) -> list[str]:
+    logger.info("Scanning the current NYRB issue: %s", CURRENT_ISSUE_URL)
     try:
-        response = requests.get(url, headers=HEADERS, timeout=15)
-        soup = BeautifulSoup(response.text, 'html.parser')
+        response = requests.get(CURRENT_ISSUE_URL, headers=HEADERS, timeout=30)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        logger.error("NYRB discovery failed: %s", exc)
+        return []
+    urls = parse_latest_article_urls(response.text, existing_urls, max_items=max_items)
+    logger.info("NYRB discovery found %d unprocessed articles", len(urls))
+    return urls
 
-        title_tag = soup.find('h1')
-        title = title_tag.text.strip() if title_tag else "精选文章"
 
-        image_url = ""
-        img_tag = soup.find('meta', property='og:image')
-        if img_tag:
-            image_url = img_tag['content']
-
-        # 兼容诗歌和特殊排版
-        paragraphs = soup.find_all(['p', 'pre', 'blockquote', 'div'],
-                                   class_=re.compile(r'poem|stanza|text|body|content', re.I))
-
-        text_blocks = []
-        for p in paragraphs:
-            text_blocks.append(p.get_text(separator=' ', strip=True))
-
-        text = "\n".join([t for t in text_blocks if len(t) > 5])
-
-        # 兜底策略
-        if len(text) < 100:
-            article_body = soup.find('article') or soup.find('main')
-            if article_body:
-                text = article_body.get_text(separator='\n', strip=True)
-
-        return {"title": title, "url": url, "text": text, "image_url": image_url}
-    except Exception as e:
-        logging.error(f"抓取正文失败: {url} - {e}")
+def scrape_article(url: str) -> dict[str, str | int] | None:
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=30)
+        status = response.status_code
+        response.raise_for_status()
+        article = parse_article_html(response.text, url)
+        article["http_status"] = status
+        return article
+    except requests.RequestException as exc:
+        logger.error("NYRB fetch failed for %s: %s", url, exc)
         return None
 
 
-def process_with_ai(article_data):
-    """DeepSeek 深度精读与结构化数据提取"""
-    text = article_data.get("text", "")
-
-    # 门槛极低，保护诗歌不被误杀
-    if len(text) < 100:
-        return "无中文标题", "✍️ 未获取作者与对象", "未获取破题", "<p>文章内容过短或遇到特殊排版无法提取。</p>"
-
-    # 解锁 8 万字符，生吞整篇巨著
-    text = text[:80000]
-
-    system_prompt = """你是一位为时间宝贵的精英读者写作的资深主笔。请基于提供的文章撰写精读报告。
-【最高指令】：总字数严格控制在 800-1000 字左右！严禁以“想象一下”等呆板词汇开头。
-（🔔 特别注意：如果检测到本文是一首诗歌、短篇小说或极短篇随笔，请自动将“独立点评”和“脉络梳理”调整为【文学赏析与意境解读】风格，延伸阅读可推荐相关的诗集或文学评论。）
-
-请务必严格按照以下带有【】的标签格式输出，不要有任何偏差：
-
-【中文标题】
-直接写出英文标题的精准且具有吸引力的中文翻译
-
-【作者与对象】
-格式必须为：“✍️ 作者：[文章作者名] ｜ 🎯 探讨对象：[如果是书评，写《书名》及原书作者；如果是展览/电影/政治事件，写明具体名称；如果是独立随笔，写“独立随笔”]”
-
-【一句话破题】
-用一句极具张力的话（不超过40字），直接点破这篇文章的核心冲突或洞见
-
-【正文】
-（从这里开始使用Markdown排版）
-### 📰 核心脉络
-（300-400字）语言要极具可读性，像讲故事一样梳理文章逻辑，必须精准嵌入2-3个核心细节（如关键史实、概念或人物）。
-
-### 🧠 独立点评
-（约200字）必须进行学术史层面的考察。指出文章在思想史或学术界的坐标，它回应了什么争论？延续或挑战了哪种范式？
-
-### 📚 延伸矩阵
-（🚨 绝对铁律：推荐的所有书籍必须是【现实中真实存在的出版物】，严禁AI伪造书名或作者！宁可推荐稍微宽泛但真实的经典著作，也绝不能编造！每本书需用1-2句话详实介绍其学术价值）
-- **核心相关（1本）**：与文章探讨的具体对象直接相关。
-- **相同脉络（1本）**：与作者理论底色相同或同属一个思想谱系。
-- **不同观点（1-2本）**：提供截然不同的解释框架或反面视角的著作。"""
-
-    for attempt in range(3):
-        try:
-            response = client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"标题：《{article_data['title']}》\n正文：\n{text}"}
-                ],
-                max_tokens=4000, temperature=0.7
-            )
-            ai_text = response.choices[0].message.content
-
-            # ==========================================
-            # 🔪 终极防御型切割逻辑（含作者与对象）
-            # ==========================================
-            zh_title = "未获取中文标题"
-            meta_info = "✍️ 未获取作者与对象"
-            hook = "未获取破题"
-            main_content = ai_text  # 默认先给全文
-
-            title_match = re.search(r'【中文标题】(.*?)(?=【作者与对象】|【一句话破题】)', ai_text, re.S)
-            if title_match:
-                zh_title = title_match.group(1).strip()
-                main_content = main_content.replace(title_match.group(0), "")
-
-            meta_match = re.search(r'【作者与对象】(.*?)(?=【一句话破题】)', ai_text, re.S)
-            if meta_match:
-                meta_info = meta_match.group(1).strip()
-                main_content = main_content.replace(meta_match.group(0), "")
-
-            hook_match = re.search(r'【一句话破题】(.*?)(?=【正文】|###|$)', ai_text, re.S)
-            if hook_match:
-                hook = hook_match.group(1).strip()
-                main_content = main_content.replace(hook_match.group(0), "")
-
-            main_content = main_content.replace("【正文】", "").strip()
-            # ==========================================
-
-            ai_html = markdown.markdown(main_content, extensions=['extra'])
-            wrapper = f'<div style="font-size:16px; line-height:1.6; color:#333;">{ai_html}</div>'
-
-            if article_data.get("image_url"):
-                img = f'<img src="{article_data["image_url"]}" style="width:100%; border-radius:10px;"/><br>'
-                wrapper = img + wrapper
-
-            return zh_title, meta_info, hook, wrapper
-
-        except Exception as e:
-            if '429' in str(e):
-                logging.warning("API 频率限制，沉睡 30 秒...")
-                time.sleep(30)
-            else:
-                logging.error(f"AI 处理错误: {e}")
-                return "API错误", "API错误", "API错误", f"<p style='color:red;'>AI 错误: {e}</p>"
-
-    return "触发限制", "触发限制", "触发限制", "<p style='color:red;'>跳过此文章摘要。</p>"
-
-
-# ==========================================
-# 3. 主程序装配与打包发布
-# ==========================================
-
-def main():
-    if not api_key:
-        logging.error("未找到 DEEPSEEK_API_KEY 环境变量！")
-        return
-
-    existing_urls, existing_items_xml = get_existing_items()
-
-    # max_items=50，确保能一次性吃掉整期杂志
+def main() -> int:
+    existing_urls = get_existing_urls(RAW_ROOT, XML_FILE)
     urls = get_latest_article_urls(existing_urls, max_items=50)
-
-    if not urls:
-        logging.info("🎉 当前期所有文章已处理完毕或无更新，正在等待新刊发布... 本次未消耗 AI Token。")
-        return
-
-    new_items_xml = []
+    saved = 0
     for url in urls:
-        logging.info(f"✨ 正在处理新文章: {url}")
-        article_data = scrape_article(url)
-
-        if article_data and article_data["text"]:
-            zh_title, meta_info, hook, ai_summary_html = process_with_ai(article_data)
-            pub_date = formatdate(localtime=False)
-
-            # 将四个核心部件拼装成 XML Item
-            item_xml = f"""
-    <item>
-        <title><![CDATA[{article_data["title"]}]]></title>
-        <link>{url}</link>
-        <guid isPermaLink="false">{url}</guid>
-        <pubDate>{pub_date}</pubDate>
-        <description><![CDATA[{zh_title}|||{meta_info}|||{hook}]]></description>
-        <content:encoded><![CDATA[{ai_summary_html}]]></content:encoded>
-    </item>"""
-            new_items_xml.append(item_xml)
-            time.sleep(15)  # 尊贵的喘息时间
-
-    all_items = (new_items_xml + existing_items_xml)[:MAX_HISTORY]
-
-    rss_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
-<channel>
-    <title><![CDATA[AI 深度精读版]]></title>
-    <link>https://github.com/</link>
-    <description><![CDATA[高端学术精读杂志]]></description>
-    <language>zh-CN</language>
-    <pubDate>{formatdate(localtime=False)}</pubDate>
-"""
-    for item in all_items:
-        rss_xml += item
-    rss_xml += "\n</channel>\n</rss>"
-
-    with open(XML_FILE, 'w', encoding='utf-8') as f:
-        f.write(rss_xml)
-
-    logging.info(f"✅ 更新完毕！本次完美消化了 {len(new_items_xml)} 篇文章。")
+        logger.info("Fetching NYRB article: %s", url)
+        article = scrape_article(url)
+        if article and save_raw_article(article, RAW_ROOT):
+            saved += 1
+    logger.info("NYRB run complete: discovered=%d saved=%d", len(urls), saved)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
