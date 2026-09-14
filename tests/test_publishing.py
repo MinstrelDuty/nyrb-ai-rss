@@ -200,3 +200,19 @@ def test_articles_json_is_sorted_by_article_date_descending(tmp_path: Path):
         "https://example.com/newer",
         "https://example.com/older",
     ]
+
+
+def test_rss_escapes_raw_markdown_html_and_rejects_non_http_image_urls(tmp_path: Path):
+    articles_root = tmp_path / "data" / "articles"
+    import_csv_text(
+        _csv([_row(body_markdown="<script>alert(1)</script>", image_url="javascript:alert(1)")]),
+        articles_root,
+    )
+    build_rss(articles_root, tmp_path)
+
+    rss = ET.parse(tmp_path / "lrb_ai_enhanced.xml").getroot()
+    content = rss.find("./channel/item/{http://purl.org/rss/1.0/modules/content/}encoded")
+
+    assert content is not None
+    assert "<script>" not in (content.text or "")
+    assert "javascript:" not in (content.text or "")

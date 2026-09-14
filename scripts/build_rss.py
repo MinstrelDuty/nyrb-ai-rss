@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import html
 from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
 import markdown
@@ -33,11 +35,20 @@ def _rss_date(article: dict[str, Any]) -> str:
 
 
 def _body_html(article: dict[str, Any]) -> str:
-    html = markdown.markdown(article["body_markdown"], extensions=["extra"])
-    if article["image_url"]:
-        image = f'<img src="{article["image_url"]}" alt="" style="width:100%; border-radius:10px;"/>'
-        return f"{image}\n{html}"
-    return html
+    body_html = markdown.markdown(html.escape(article["body_markdown"]), extensions=["extra"])
+    image_url = _safe_image_url(article["image_url"])
+    if image_url:
+        image = f'<img src="{image_url}" alt="" style="width:100%; border-radius:10px;"/>'
+        return f"{image}\n{body_html}"
+    return body_html
+
+
+def _safe_image_url(value: str) -> str:
+    image_url = str(value or "").strip()
+    parsed = urlsplit(image_url)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        return ""
+    return html.escape(image_url, quote=True)
 
 
 def _feed_xml(source: str, articles: list[dict[str, Any]]) -> bytes:

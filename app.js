@@ -70,7 +70,8 @@
   function normalizeArticle(record) {
     const source = getSource(String(record.source || '').toLowerCase());
     const markdownText = String(record.body_markdown || '');
-    const contentHtml = window.marked ? marked.parse(markdownText) : `<pre>${escapeHtml(markdownText)}</pre>`;
+    const safeMarkdown = BookReviewCore.escapeRawHtml(markdownText);
+    const contentHtml = window.marked ? marked.parse(safeMarkdown) : `<pre>${escapeHtml(markdownText)}</pre>`;
     const date = safeDate(record.article_date || record.processed_at);
     const author = String(record.author || '').trim();
     const subject = String(record.subject || '').trim();

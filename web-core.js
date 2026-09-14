@@ -11,6 +11,12 @@
     return String(value || '').normalize('NFKC').toLocaleLowerCase();
   }
 
+  function escapeRawHtml(value) {
+    return String(value || '')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   function searchArticles(articles, query) {
     const needle = normalizeText(query).trim();
     if (!needle) return [...articles];
@@ -100,6 +106,7 @@
 
   return {
     normalizeText,
+    escapeRawHtml,
     searchArticles,
     sanitizeFilename,
     yamlString,

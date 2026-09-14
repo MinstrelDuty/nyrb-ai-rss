@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { searchArticles } = require('../web-core.js');
+const { escapeRawHtml, searchArticles } = require('../web-core.js');
 
 test('searchArticles finds an article through a keyword', () => {
   const articles = [{
@@ -15,4 +15,11 @@ test('searchArticles finds an article through a keyword', () => {
   }];
 
   assert.deepEqual(searchArticles(articles, 'close reading'), articles);
+});
+
+test('escapeRawHtml prevents published Markdown from injecting HTML', () => {
+  assert.equal(
+    escapeRawHtml('<img src=x onerror="alert(1)">'),
+    '&lt;img src=x onerror="alert(1)"&gt;'
+  );
 });
