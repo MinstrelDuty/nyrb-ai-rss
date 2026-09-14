@@ -1,0 +1,52 @@
+name: Publish reviewed Sheet articles
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      SHEET_CSV_URL: ${{ secrets.SHEET_CSV_URL || vars.SHEET_CSV_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Import approved Sheet rows
+        run: python scripts/import_sheet.py
+
+      - name: Build website data and RSS feeds
+        run: |
+          python scripts/build_articles_json.py
+          python scripts/build_rss.py
+
+      - name: Run tests
+        run: |
+          pytest -q
+          node --test tests/*.test.js
+
+      - name: Commit published artifacts when changed
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A data/articles.json nyrb_ai_enhanced.xml lrb_ai_enhanced.xml tls_ai_enhanced.xml nyt_ai_enhanced.xml
+          if [ -d data/articles ]; then git add -A data/articles; fi
+          if git diff --cached --quiet; then
+            echo "No publication changes"
+          else
+            git commit -m "Publish reviewed articles"
+            git push
+          fi

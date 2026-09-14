@@ -16,11 +16,14 @@
     if (!needle) return [...articles];
 
     return articles.filter(article => normalizeText([
-      article.titleZh,
-      article.titleEn,
+      article.title_zh || article.titleZh,
+      article.original_title || article.titleEn,
+      article.author,
+      article.subject,
       article.metaInfo,
       article.hook,
-      article.contentText
+      Array.isArray(article.keywords) ? article.keywords.join('\n') : article.keywords,
+      article.body_markdown || article.contentText
     ].join('\n')).includes(needle));
   }
 

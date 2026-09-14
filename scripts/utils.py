@@ -7,6 +7,7 @@ import json
 import re
 from datetime import date
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
 
@@ -64,7 +65,7 @@ def article_filename(source: str, article_date: str, url: str) -> str:
     return f"{source_key}-{stable_suffix}.md"
 
 
-def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
+def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     normalized = str(text).replace("\r\n", "\n")
     if not normalized.startswith("---\n"):
         raise ValueError("frontmatter must start with ---")
@@ -72,7 +73,7 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     if closing == -1:
         raise ValueError("frontmatter is not closed")
 
-    metadata: dict[str, str] = {}
+    metadata: dict[str, Any] = {}
     header = normalized[4:closing]
     for line in header.splitlines():
         if not line.strip():
@@ -82,11 +83,11 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
             raise ValueError(f"invalid frontmatter line: {line!r}")
         key, raw_value = match.groups()
         raw_value = raw_value or ""
-        if raw_value.startswith('"'):
+        if raw_value.startswith(('"', "[", "{")):
             try:
-                metadata[key] = str(json.loads(raw_value))
+                metadata[key] = json.loads(raw_value)
             except json.JSONDecodeError as exc:
-                raise ValueError(f"invalid quoted frontmatter value for {key}") from exc
+                raise ValueError(f"invalid JSON frontmatter value for {key}") from exc
         else:
             metadata[key] = raw_value
 
@@ -96,12 +97,13 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     return metadata, body
 
 
-def render_frontmatter(metadata: dict[str, str], body: str) -> str:
+def render_frontmatter(metadata: dict[str, Any], body: str) -> str:
     lines = ["---"]
     for key, value in metadata.items():
         if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", str(key)):
             raise ValueError(f"invalid frontmatter key: {key!r}")
-        lines.append(f"{key}: {json.dumps(str(value or ""), ensure_ascii=False)}")
+        serialized = str(value or "") if isinstance(value, str) or value is None else value
+        lines.append(f"{key}: {json.dumps(serialized, ensure_ascii=False)}")
     lines.extend(["---", ""])
     content = str(body or "").replace("\r\n", "\n")
     if content and not content.endswith("\n"):
