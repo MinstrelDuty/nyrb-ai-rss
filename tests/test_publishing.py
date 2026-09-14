@@ -126,6 +126,41 @@ def test_builders_emit_structured_json_and_legacy_compatible_rss(tmp_path: Path)
     assert "https://example.com/burrow.jpg" in (content.text or "")
 
 
+def test_new_sources_flow_from_sheet_to_json_and_dedicated_rss(tmp_path: Path):
+    articles_root = tmp_path / "data" / "articles"
+    import_csv_text(
+        _csv(
+            [
+                _row(
+                    source="NEWYORKER",
+                    url="https://www.newyorker.com/books/under-review/example-review",
+                    raw_path="raw/newyorker/2026-09-10-example-review.md",
+                    original_title="Example New Yorker Review",
+                ),
+                _row(
+                    source="ATLANTIC",
+                    url="https://www.theatlantic.com/books/example-review/",
+                    raw_path="raw/atlantic/2026-09-10-example-review.md",
+                    original_title="Example Atlantic Review",
+                ),
+            ]
+        ),
+        articles_root,
+    )
+
+    json_path = tmp_path / "data" / "articles.json"
+    payload = build_articles_json(articles_root, json_path)
+    outputs = build_rss(articles_root, tmp_path)
+
+    assert {record["source"] for record in payload} == {"newyorker", "atlantic"}
+    assert {Path(path).name for path in outputs.values()} >= {
+        "newyorker_ai_enhanced.xml",
+        "atlantic_ai_enhanced.xml",
+    }
+    assert ET.parse(tmp_path / "newyorker_ai_enhanced.xml").find("./channel/item") is not None
+    assert ET.parse(tmp_path / "atlantic_ai_enhanced.xml").find("./channel/item") is not None
+
+
 def test_rss_builder_preserves_legacy_history_and_replaces_revised_url(tmp_path: Path):
     articles_root = tmp_path / "data" / "articles"
     import_csv_text(_csv([_row()]), articles_root)
