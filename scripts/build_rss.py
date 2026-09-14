@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
 import markdown
+from bs4 import BeautifulSoup
 
 try:
     from scripts.publishing import SUPPORTED_SOURCES, load_articles
@@ -39,8 +40,8 @@ def _body_html(article: dict[str, Any]) -> str:
     image_url = _safe_image_url(article["image_url"])
     if image_url:
         image = f'<img src="{image_url}" alt="" style="width:100%; border-radius:10px;"/>'
-        return f"{image}\n{body_html}"
-    return body_html
+        body_html = f"{image}\n{body_html}"
+    return _sanitize_html(body_html)
 
 
 def _safe_image_url(value: str) -> str:
@@ -49,6 +50,34 @@ def _safe_image_url(value: str) -> str:
     if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
         return ""
     return html.escape(image_url, quote=True)
+
+
+def _safe_content_url(value: str) -> bool:
+    url = str(value or "").strip()
+    parsed = urlsplit(url)
+    if parsed.scheme:
+        return parsed.scheme.lower() in {"http", "https"} and bool(parsed.netloc)
+    return url.startswith(("/", "./", "../", "#", "?")) and not url.startswith("//")
+
+
+def _sanitize_html(value: str) -> str:
+    allowed_tags = {
+        "a", "blockquote", "br", "code", "del", "em", "h1", "h2", "h3", "h4", "h5", "h6",
+        "hr", "img", "li", "ol", "p", "pre", "strong", "table", "tbody", "td", "th", "thead", "tr", "ul",
+    }
+    allowed_attributes = {"a": {"href", "title"}, "img": {"alt", "src", "title"}}
+    soup = BeautifulSoup(value, "html.parser")
+    for tag in soup.find_all(True):
+        if tag.name not in allowed_tags:
+            tag.unwrap()
+            continue
+        for attribute in list(tag.attrs):
+            if attribute not in allowed_attributes.get(tag.name, set()):
+                del tag.attrs[attribute]
+                continue
+            if attribute in {"href", "src"} and not _safe_content_url(str(tag.attrs[attribute])):
+                del tag.attrs[attribute]
+    return str(soup)
 
 
 def _feed_xml(source: str, articles: list[dict[str, Any]]) -> bytes:

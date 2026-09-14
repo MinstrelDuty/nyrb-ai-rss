@@ -70,8 +70,7 @@
   function normalizeArticle(record) {
     const source = getSource(String(record.source || '').toLowerCase());
     const markdownText = String(record.body_markdown || '');
-    const safeMarkdown = BookReviewCore.escapeRawHtml(markdownText);
-    const contentHtml = window.marked ? marked.parse(safeMarkdown) : `<pre>${escapeHtml(markdownText)}</pre>`;
+    const contentHtml = renderMarkdown(markdownText);
     const date = safeDate(record.article_date || record.processed_at);
     const author = String(record.author || '').trim();
     const subject = String(record.subject || '').trim();
@@ -89,11 +88,18 @@
       bodyMarkdown: markdownText,
       contentHtml,
       contentText: stripHtml(contentHtml),
-      link: String(record.url || '#'),
+      link: BookReviewCore.isSafeUrl(record.url) ? String(record.url) : '#',
       publishedAt: date.timestamp,
       publishedDate: date.iso,
       dateLabel: date.label
     };
+  }
+
+  function renderMarkdown(markdownText) {
+    if (!window.marked || !window.DOMPurify) return `<pre>${escapeHtml(markdownText)}</pre>`;
+    return DOMPurify.sanitize(marked.parse(BookReviewCore.escapeRawHtml(markdownText)), {
+      ALLOWED_URI_REGEXP: /^(?:(?:https?):|(?:\/(?!\/))|(?:\.\.?\/)|#|\?)/i
+    });
   }
 
   async function loadArticles() {

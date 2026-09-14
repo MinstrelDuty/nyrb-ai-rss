@@ -24,6 +24,8 @@ def canonicalize_url(url: str) -> str:
     parts = urlsplit(value)
     if not parts.scheme or not parts.netloc:
         raise ValueError(f"URL must be absolute: {url!r}")
+    if parts.scheme.lower() not in {"http", "https"}:
+        raise ValueError(f"URL must use http or https: {url!r}")
 
     query = [
         (key, item)

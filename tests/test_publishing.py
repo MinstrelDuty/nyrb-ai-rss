@@ -6,10 +6,12 @@ import sys
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+import pytest
+
 from scripts.build_articles_json import build_articles_json
 from scripts.build_rss import build_rss
 from scripts.publishing import REQUIRED_COLUMNS, import_csv_text, load_articles, published_records_from_csv
-from scripts.utils import render_frontmatter
+from scripts.utils import canonicalize_url, render_frontmatter
 
 
 def _csv(rows: list[dict[str, str]]) -> str:
@@ -205,7 +207,7 @@ def test_articles_json_is_sorted_by_article_date_descending(tmp_path: Path):
 def test_rss_escapes_raw_markdown_html_and_rejects_non_http_image_urls(tmp_path: Path):
     articles_root = tmp_path / "data" / "articles"
     import_csv_text(
-        _csv([_row(body_markdown="<script>alert(1)</script>", image_url="javascript:alert(1)")]),
+        _csv([_row(body_markdown="<script>alert(1)</script> [click](javascript:alert(1))", image_url="javascript:alert(1)")]),
         articles_root,
     )
     build_rss(articles_root, tmp_path)
@@ -216,3 +218,8 @@ def test_rss_escapes_raw_markdown_html_and_rejects_non_http_image_urls(tmp_path:
     assert content is not None
     assert "<script>" not in (content.text or "")
     assert "javascript:" not in (content.text or "")
+
+
+def test_canonicalize_url_rejects_executable_schemes():
+    with pytest.raises(ValueError, match="http or https"):
+        canonicalize_url("javascript://example.test/%0Aalert(document.domain)")

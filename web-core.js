@@ -17,6 +17,15 @@
       .replace(/>/g, '&gt;');
   }
 
+  function isSafeUrl(value) {
+    try {
+      const parsed = new URL(String(value || ''));
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch (_) {
+      return false;
+    }
+  }
+
   function searchArticles(articles, query) {
     const needle = normalizeText(query).trim();
     if (!needle) return [...articles];
@@ -107,6 +116,7 @@
   return {
     normalizeText,
     escapeRawHtml,
+    isSafeUrl,
     searchArticles,
     sanitizeFilename,
     yamlString,
