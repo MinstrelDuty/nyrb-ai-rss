@@ -11,16 +11,34 @@
     return String(value || '').normalize('NFKC').toLocaleLowerCase();
   }
 
+  function escapeRawHtml(value) {
+    return String(value || '')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function isSafeUrl(value) {
+    try {
+      const parsed = new URL(String(value || ''));
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch (_) {
+      return false;
+    }
+  }
+
   function searchArticles(articles, query) {
     const needle = normalizeText(query).trim();
     if (!needle) return [...articles];
 
     return articles.filter(article => normalizeText([
-      article.titleZh,
-      article.titleEn,
+      article.title_zh || article.titleZh,
+      article.original_title || article.titleEn,
+      article.author,
+      article.subject,
       article.metaInfo,
       article.hook,
-      article.contentText
+      Array.isArray(article.keywords) ? article.keywords.join('\n') : article.keywords,
+      article.body_markdown || article.contentText
     ].join('\n')).includes(needle));
   }
 
@@ -97,6 +115,8 @@
 
   return {
     normalizeText,
+    escapeRawHtml,
+    isSafeUrl,
     searchArticles,
     sanitizeFilename,
     yamlString,

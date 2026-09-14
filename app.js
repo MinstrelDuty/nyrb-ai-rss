@@ -2,16 +2,13 @@
   'use strict';
 
   const SOURCES = [
-    { id: 'nyrb', shortName: 'NYRB', name: '纽约书评', file: 'nyrb_ai_enhanced.xml' },
-    { id: 'lrb', shortName: 'LRB', name: '伦敦书评', file: 'lrb_ai_enhanced.xml' },
-    { id: 'tls', shortName: 'TLS', name: '泰晤士文学增刊', file: 'tls_ai_enhanced.xml' },
-    { id: 'nyt', shortName: 'NYT', name: '纽时书评', file: 'nyt_ai_enhanced.xml' }
+    { id: 'nyrb', shortName: 'NYRB', name: '纽约书评' },
+    { id: 'lrb', shortName: 'LRB', name: '伦敦书评' },
+    { id: 'tls', shortName: 'TLS', name: '泰晤士文学增刊' },
+    { id: 'nyt', shortName: 'NYT', name: '纽时书评' }
   ];
 
-  const feedCache = new Map();
-  const turndown = typeof TurndownService !== 'undefined'
-    ? new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-' })
-    : null;
+  let articlesPromise = null;
 
   let activeSourceId = 'nyrb';
   let searchScope = 'current';
@@ -58,12 +55,6 @@
     return element.textContent || element.innerText || '';
   }
 
-  function extractSection(text, header) {
-    const regex = new RegExp(`【${escapeRegex(header)}】[:：\\s]*([^【]+)`);
-    const match = String(text || '').match(regex);
-    return match ? match[1].trim() : '';
-  }
-
   function safeDate(value) {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
@@ -76,98 +67,67 @@
     };
   }
 
-  function parseArticle(item, source) {
-    const titleEn = item.querySelector('title')?.textContent?.trim() || 'Untitled';
-    const pubDate = item.querySelector('pubDate')?.textContent || '';
-    const link = item.querySelector('link')?.textContent?.trim() || '#';
-    const description = item.querySelector('description')?.textContent || '';
-    const encodedNode = item.getElementsByTagNameNS('*', 'encoded')[0];
-    const date = safeDate(pubDate);
-
-    let titleZh = '';
-    let metaInfo = '';
-    let hook = '';
-    let contentHtml = '';
-
-    if (description.includes('|||')) {
-      const parts = description.split('|||');
-      titleZh = parts[0]?.trim() || '解析失败';
-      metaInfo = parts[1]?.trim() || '';
-      hook = parts[2]?.trim() || '';
-      contentHtml = encodedNode?.textContent || '<p>无正文</p>';
-    } else if (description.includes('未能成功抓取') || description.includes('AI 处理超时')) {
-      titleZh = '原文特殊或抓取受限';
-      metaInfo = '系统提示';
-      hook = '该文章未能完成自动精读';
-      contentHtml = `<p>${escapeHtml(description)}</p>`;
-    } else {
-      titleZh = extractSection(description, '中文标题');
-      metaInfo = extractSection(description, '作者与对象');
-      hook = extractSection(description, '一句话破题');
-
-      if (!titleZh) titleZh = titleEn;
-
-      const contentParts = description.split(/【正文】/);
-      const markdownText = (contentParts.length > 1 ? contentParts[1] : description)
-        .replace(/<hr>\s*<i>注：.*?<\/i>/g, '')
-        .trim();
-      contentHtml = window.marked ? marked.parse(markdownText) : `<pre>${escapeHtml(markdownText)}</pre>`;
-    }
-
+  function normalizeArticle(record) {
+    const source = getSource(String(record.source || '').toLowerCase());
+    const markdownText = String(record.body_markdown || '');
+    const contentHtml = renderMarkdown(markdownText);
+    const date = safeDate(record.article_date || record.processed_at);
+    const author = String(record.author || '').trim();
+    const subject = String(record.subject || '').trim();
     return {
       sourceId: source.shortName,
       sourceKey: source.id,
       sourceName: source.name,
-      titleZh,
-      titleEn,
-      metaInfo,
-      hook,
+      titleZh: String(record.title_zh || record.original_title || '未命名文章'),
+      titleEn: String(record.original_title || ''),
+      author,
+      subject,
+      metaInfo: `✍️ 作者：${author} ｜ 🎯 探讨对象：${subject}`,
+      hook: String(record.hook || ''),
+      keywords: Array.isArray(record.keywords) ? record.keywords : [],
+      bodyMarkdown: markdownText,
       contentHtml,
       contentText: stripHtml(contentHtml),
-      link,
+      link: BookReviewCore.isSafeUrl(record.url) ? String(record.url) : '#',
       publishedAt: date.timestamp,
       publishedDate: date.iso,
       dateLabel: date.label
     };
   }
 
+  function renderMarkdown(markdownText) {
+    if (!window.marked || !window.DOMPurify) return `<pre>${escapeHtml(markdownText)}</pre>`;
+    return DOMPurify.sanitize(marked.parse(BookReviewCore.escapeRawHtml(markdownText)), {
+      ALLOWED_URI_REGEXP: /^(?:(?:https?):|(?:\/(?!\/))|(?:\.\.?\/)|#|\?)/i
+    });
+  }
+
+  async function loadArticles() {
+    if (!articlesPromise) {
+      articlesPromise = fetch(`data/articles.json?t=${Date.now()}`)
+        .then(response => {
+          if (!response.ok) throw new Error(`文章数据加载失败 (${response.status})`);
+          return response.json();
+        })
+        .then(records => {
+          if (!Array.isArray(records)) throw new Error('文章数据格式无效');
+          return records.map(normalizeArticle).sort((a, b) => b.publishedAt - a.publishedAt);
+        })
+        .catch(error => {
+          articlesPromise = null;
+          throw error;
+        });
+    }
+    return articlesPromise;
+  }
+
   async function loadSource(source) {
-    if (feedCache.has(source.id)) return feedCache.get(source.id);
-
-    const promise = fetch(`${source.file}?t=${Date.now()}`)
-      .then(response => {
-        if (!response.ok) throw new Error(`${source.name} 加载失败 (${response.status})`);
-        return response.text();
-      })
-      .then(xmlText => {
-        const documentXml = new DOMParser().parseFromString(xmlText, 'text/xml');
-        if (documentXml.querySelector('parsererror')) throw new Error(`${source.name} XML 解析失败`);
-        const articles = Array.from(documentXml.querySelectorAll('item'))
-          .map(item => parseArticle(item, source))
-          .sort((a, b) => b.publishedAt - a.publishedAt);
-        return articles;
-      })
-      .catch(error => {
-        feedCache.delete(source.id);
-        throw error;
-      });
-
-    feedCache.set(source.id, promise);
-    return promise;
+    const articles = await loadArticles();
+    return articles.filter(article => article.sourceKey === source.id);
   }
 
   async function loadAllSources() {
-    const settled = await Promise.allSettled(SOURCES.map(source => loadSource(source)));
-    const articles = [];
-    const errors = [];
-
-    settled.forEach((result, index) => {
-      if (result.status === 'fulfilled') articles.push(...result.value);
-      else errors.push(`${SOURCES[index].name}：${result.reason?.message || '加载失败'}`);
-    });
-
-    articles.sort((a, b) => b.publishedAt - a.publishedAt);
-    return { articles, errors };
+    return { articles: await loadArticles(), errors: [] };
   }
 
   function setNotice(message, type = '') {
@@ -306,8 +266,7 @@
   }
 
   function bodyMarkdown(article) {
-    if (!turndown) throw new Error('Markdown 转换组件未加载');
-    return turndown.turndown(article.contentHtml || '');
+    return article.bodyMarkdown || '';
   }
 
   function downloadBlob(blob, filename) {
