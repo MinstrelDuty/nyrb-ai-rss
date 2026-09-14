@@ -14,7 +14,10 @@ from .utils import canonicalize_url, parse_frontmatter, render_frontmatter, stab
 
 
 logger = logging.getLogger(__name__)
-RAW_SOURCES = ("nyrb", "lrb", "tls")
+# Every source directory that may contain a raw Markdown article.  Keeping the
+# list centralized makes URL de-duplication work across both the original
+# collectors and the source-expansion collectors.
+RAW_SOURCES = ("nyrb", "lrb", "tls", "newyorker", "atlantic", "publicbooks")
 
 
 def utc_now_iso() -> str:
