@@ -30,6 +30,8 @@ jobs:
           python "nyrb_rss.py"
           python "lrb_rss.py"
           python "tls_rss.py"
+          python "newyorker_rss.py"
+          python "atlantic_books.py"
 
       - name: Commit and push raw articles
         run: |
