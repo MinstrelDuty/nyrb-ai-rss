@@ -101,6 +101,69 @@ def _feed_xml(source: str, articles: list[dict[str, Any]]) -> bytes:
     return ET.tostring(rss, encoding="utf-8", xml_declaration=True)
 
 
+def _item_url(item: ET.Element) -> str:
+    """Return the canonical URL used to identify an RSS item."""
+    for tag in ("link", "guid"):
+        value = item.findtext(tag, default="").strip()
+        if value:
+            return value
+    return ""
+
+
+def _merge_feed_xml(
+    source: str,
+    articles: list[dict[str, Any]],
+    existing_path: Path,
+) -> bytes:
+    """Update canonical items without discarding legacy RSS history.
+
+    The raw-ingestion feeds predate canonical Markdown and contain historical
+    entries that are not yet represented under ``data/articles``. Preserve
+    those entries, replacing only items whose URL is now published from the
+    Sheet. New canonical items are prepended in deterministic date order.
+    """
+    if not existing_path.exists():
+        return _feed_xml(source, articles)
+    if not articles:
+        # Avoid needless reserialization (and preserve byte-for-byte legacy
+        # feeds) when this publication has no canonical Sheet rows yet.
+        return existing_path.read_bytes().rstrip(b"\r\n")
+    try:
+        root = ET.parse(existing_path).getroot()
+        channel = root.find("channel")
+        if channel is None:
+            return _feed_xml(source, articles)
+    except (ET.ParseError, OSError):
+        return _feed_xml(source, articles)
+
+    existing_items = list(channel.findall("item"))
+    by_url: dict[str, list[ET.Element]] = {}
+    for item in existing_items:
+        url = _item_url(item)
+        if url:
+            by_url.setdefault(url, []).append(item)
+
+    rendered_root = ET.fromstring(_feed_xml(source, articles))
+    rendered_items = list(rendered_root.find("channel").findall("item"))
+    # Remove duplicate legacy entries for a URL that is being revised, then
+    # replace the first occurrence in place so historical ordering is stable.
+    for article, rendered in zip(articles, rendered_items):
+        matches = by_url.get(article["url"], [])
+        if matches:
+            first = matches[0]
+            index = list(channel).index(first)
+            channel.remove(first)
+            for duplicate in matches[1:]:
+                if duplicate in list(channel):
+                    channel.remove(duplicate)
+            channel.insert(index, rendered)
+        else:
+            channel.insert(0, rendered)
+
+    ET.indent(root, space="  ")
+    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
 def build_rss(
     articles_root: Path = Path("data/articles"), output_root: Path = Path(".")
 ) -> dict[str, Path]:
@@ -111,7 +174,7 @@ def build_rss(
         source_articles = [article for article in records if article["source"] == source]
         source_articles.sort(key=lambda article: (article["article_date"], article["processed_at"], article["url"]), reverse=True)
         output = output_dir / f"{source}_ai_enhanced.xml"
-        output.write_bytes(_feed_xml(source, source_articles) + b"\n")
+        output.write_bytes(_merge_feed_xml(source, source_articles, output) + b"\n")
         outputs[source] = output
     return outputs
 

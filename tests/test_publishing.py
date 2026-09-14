@@ -126,6 +126,31 @@ def test_builders_emit_structured_json_and_legacy_compatible_rss(tmp_path: Path)
     assert "https://example.com/burrow.jpg" in (content.text or "")
 
 
+def test_rss_builder_preserves_legacy_history_and_replaces_revised_url(tmp_path: Path):
+    articles_root = tmp_path / "data" / "articles"
+    import_csv_text(_csv([_row()]), articles_root)
+    feed = tmp_path / "lrb_ai_enhanced.xml"
+    feed.write_text(
+        """<?xml version=\"1.0\" encoding=\"utf-8\"?>
+<rss version=\"2.0\"><channel>
+  <title>LRB AI 深度精读版</title>
+  <item><title>旧版本</title><link>https://www.lrb.co.uk/the-paper/v48/n18/colin-burrow/good-weird</link><description>旧内容</description></item>
+  <item><title>历史文章</title><link>https://example.com/legacy</link><description>保留</description></item>
+</channel></rss>
+""",
+        encoding="utf-8",
+    )
+
+    build_rss(articles_root, tmp_path)
+
+    root = ET.parse(feed).getroot()
+    items = root.findall("./channel/item")
+    assert len(items) == 2
+    by_url = {item.findtext("link"): item for item in items}
+    assert by_url["https://example.com/legacy"].findtext("title") == "历史文章"
+    assert by_url["https://www.lrb.co.uk/the-paper/v48/n18/colin-burrow/good-weird"].findtext("description").startswith("好怪还是坏怪|||")
+
+
 def test_json_builder_ignores_a_nonpublished_canonical_file(tmp_path: Path):
     articles_root = tmp_path / "data" / "articles"
     import_csv_text(_csv([_row()]), articles_root)
