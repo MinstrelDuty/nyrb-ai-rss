@@ -20,7 +20,7 @@ REQUIRED_COLUMNS = (
     "image_url", "title_zh", "subject", "hook", "keywords", "body_markdown",
     "processed_at", "status",
 )
-SUPPORTED_SOURCES = {"nyrb", "lrb", "tls", "nyt"}
+SUPPORTED_SOURCES = {"nyrb", "lrb", "tls", "nyt", "newyorker", "atlantic"}
 
 
 def parse_processed_at(value: str) -> datetime:

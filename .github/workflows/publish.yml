@@ -42,7 +42,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add -A data/articles.json nyrb_ai_enhanced.xml lrb_ai_enhanced.xml tls_ai_enhanced.xml nyt_ai_enhanced.xml
+          git add -A data/articles.json '*_ai_enhanced.xml'
           if [ -d data/articles ]; then git add -A data/articles; fi
           if git diff --cached --quiet; then
             echo "No publication changes"

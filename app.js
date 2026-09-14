@@ -5,7 +5,9 @@
     { id: 'nyrb', shortName: 'NYRB', name: '纽约书评' },
     { id: 'lrb', shortName: 'LRB', name: '伦敦书评' },
     { id: 'tls', shortName: 'TLS', name: '泰晤士文学增刊' },
-    { id: 'nyt', shortName: 'NYT', name: '纽时书评' }
+    { id: 'nyt', shortName: 'NYT', name: '纽时书评' },
+    { id: 'newyorker', shortName: 'NEW YORKER', name: '纽约客' },
+    { id: 'atlantic', shortName: 'ATLANTIC', name: '大西洋月刊' }
   ];
 
   let articlesPromise = null;
@@ -419,7 +421,7 @@
   });
 
   allArchiveButton.addEventListener('click', () => {
-    withBusyButton(allArchiveButton, '正在整理四刊…', () => downloadAllArchive(allArchiveButton));
+    withBusyButton(allArchiveButton, '正在整理六刊…', () => downloadAllArchive(allArchiveButton));
   });
 
   window.addEventListener('DOMContentLoaded', showActiveSource);
