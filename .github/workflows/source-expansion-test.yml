@@ -22,6 +22,28 @@ jobs:
           python newyorker_rss.py
           python atlantic_books.py
           if [ -f publicbooks_rss.py ]; then python publicbooks_rss.py; fi
+      - name: Probe three Public Books review bodies
+        if: ${{ hashFiles('publicbooks_rss.py') != '' }}
+        run: |
+          python - <<'PY'
+          from publicbooks_rss import scrape_article_via_jina
+
+          urls = (
+              "https://www.publicbooks.org/rachel-cusksdiminishing-returns/",
+              "https://www.publicbooks.org/if-on-a-winters-night-a-reader/",
+              "https://www.publicbooks.org/my-job-is-to-fulfill-your-infantile-desire/",
+          )
+          for url in urls:
+              article = scrape_article_via_jina({"url": url})
+              print(
+                  "PUBLICBOOKS_PROBE"
+                  f" url={url} accepted={article is not None}"
+                  f" chars={len(str(article.get('text', ''))) if article else 0}"
+                  f" paragraphs={article.get('paragraph_count', 0) if article else 0}"
+                  f" title={article.get('title', '') if article else ''}"
+                  f" date={article.get('article_date', '') if article else ''}"
+              )
+          PY
       - name: Run tests
         run: pytest -q
       - name: Compile Python sources
