@@ -21,6 +21,7 @@ jobs:
         run: |
           python newyorker_rss.py
           python atlantic_books.py
+          if [ -f publicbooks_rss.py ]; then python publicbooks_rss.py; fi
       - name: Run tests
         run: pytest -q
       - name: Compile Python sources
