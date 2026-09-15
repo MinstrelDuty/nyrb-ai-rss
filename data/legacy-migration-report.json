@@ -1,0 +1,32 @@
+{
+  "migrated": 349,
+  "skipped_existing": 1,
+  "skipped_invalid": 5,
+  "errors": [
+    {
+      "source": "nyrb",
+      "url": "https://www.nybooks.com/articles/2026/09/24/september-october-november-lawrence-joseph/",
+      "reason": "invalid author_subject"
+    },
+    {
+      "source": "nyt",
+      "url": "https://www.nytimes.com/2026/07/01/books/best-sandra-boynton-books.html",
+      "reason": "incomplete NYT legacy description"
+    },
+    {
+      "source": "nyt",
+      "url": "https://www.nytimes.com/2026/07/02/books/review/new-recommended-books.html",
+      "reason": "incomplete NYT legacy description"
+    },
+    {
+      "source": "nyt",
+      "url": "https://www.nytimes.com/2026/07/01/books/communion-bell-hooks-jd-vance.html",
+      "reason": "incomplete NYT legacy description"
+    },
+    {
+      "source": "nyt",
+      "url": "https://www.nytimes.com/2026/07/01/books/review/sandra-boynton-board-books-kids-hippos-go-berserk.html",
+      "reason": "incomplete NYT legacy description"
+    }
+  ]
+}

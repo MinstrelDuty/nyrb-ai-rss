@@ -11,7 +11,8 @@ import pytest
 from scripts.build_articles_json import build_articles_json
 from scripts.build_rss import build_rss
 from scripts.publishing import REQUIRED_COLUMNS, import_csv_text, load_articles, published_records_from_csv
-from scripts.utils import canonicalize_url, render_frontmatter
+from scripts.utils import canonicalize_url, parse_frontmatter, render_frontmatter
+from scripts.migrate_legacy_rss import html_to_markdown, migrate_legacy_feeds, parse_legacy_description
 
 
 def _csv(rows: list[dict[str, str]]) -> str:
@@ -283,3 +284,32 @@ def test_rss_escapes_raw_markdown_html_and_rejects_non_http_image_urls(tmp_path:
 def test_canonicalize_url_rejects_executable_schemes():
     with pytest.raises(ValueError, match="http or https"):
         canonicalize_url("javascript://example.test/%0Aalert(document.domain)")
+
+
+def test_legacy_migration_parses_compatibility_description_and_preserves_existing(tmp_path: Path):
+    parsed = parse_legacy_description("中文题|||✍️ 作者：甲 ｜ 🎯 探讨对象：乙|||一句话")
+    assert parsed == ("中文题", "甲", "乙", "一句话")
+    assert "# 小节" in html_to_markdown("<img src='https://x.test/a.jpg'><h1>小节</h1><blockquote>引文</blockquote><p><em>正文</em></p>")[0]
+
+    feed = tmp_path / "nyrb_ai_enhanced.xml"
+    feed.write_text('''<rss xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><item><title>English</title><link>https://example.com/a?utm_source=x</link><pubDate>Mon, 01 Jan 2024 00:00:00 +0000</pubDate><description>中文题|||✍️ 作者：甲 ｜ 🎯 探讨对象：乙|||一句话</description><content:encoded><![CDATA[<p>完整正文。</p>]]></content:encoded></item><item><title>Bad</title><link>https://example.com/b</link><description>bad</description></item></channel></rss>''', encoding="utf-8")
+    root = tmp_path / "data" / "articles"
+    existing = _row(url="https://example.com/a", title_zh="新版本")
+    import_csv_text(_csv([existing]), root)
+    report = migrate_legacy_feeds({"nyrb": feed}, root, processed_at="2026-09-15T00:00:00Z")
+    assert report["migrated"] == 0
+    assert report["skipped_existing"] == 1
+    assert report["skipped_invalid"] == 1
+
+
+def test_legacy_migration_writes_provenance_fields(tmp_path: Path):
+    feed = tmp_path / "nyrb_ai_enhanced.xml"
+    feed.write_text('''<rss xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><item><title>English</title><link>https://example.com/new</link><pubDate>Mon, 01 Jan 2024 00:00:00 +0000</pubDate><description>中文题|||✍️ 作者：甲 ｜ 🎯 探讨对象：乙|||一句话</description><content:encoded><![CDATA[<p>完整正文。</p>]]></content:encoded></item></channel></rss>''', encoding="utf-8")
+    root = tmp_path / "data" / "articles"
+
+    report = migrate_legacy_feeds({"nyrb": feed}, root, processed_at="2026-09-15T00:00:00Z")
+
+    assert report["migrated"] == 1
+    metadata, _ = parse_frontmatter(next((root / "nyrb").glob("*.md")).read_text(encoding="utf-8"))
+    assert metadata["legacy_migrated"] == "true"
+    assert metadata["migration_source"] == "legacy_rss"
