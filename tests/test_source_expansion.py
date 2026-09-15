@@ -3,6 +3,7 @@ from pathlib import Path
 
 import atlantic_books
 import newyorker_rss
+import publicbooks_rss
 from scripts.raw_utils import save_raw_article
 from scripts.utils import parse_frontmatter
 
@@ -112,3 +113,92 @@ def test_new_sources_use_raw_paths_and_cross_run_canonical_dedup(tmp_path: Path)
     assert metadata["source"] == "NEWYORKER"
     assert metadata["status"] == "raw"
     assert body.startswith("# 正文\n\n")
+
+
+def test_publicbooks_feed_discovers_only_new_reviews_and_canonicalizes_urls():
+    xml = """<?xml version="1.0"?>
+    <rss xmlns:dc="http://purl.org/dc/elements/1.1/"><channel>
+      <item><title>Review</title><link>https://www.publicbooks.org/review/?utm_source=feed</link>
+        <dc:creator>Reviewer</dc:creator><pubDate>Sun, 14 Sep 2026 15:00:00 +0000</pubDate>
+        <category>Reviews</category></item>
+      <item><title>Essay</title><link>https://www.publicbooks.org/essay/</link>
+        <category>Essays</category></item>
+      <item><title>Already saved</title><link>https://www.publicbooks.org/already/</link>
+        <category>Reviews</category></item>
+    </channel></rss>"""
+
+    entries = publicbooks_rss.parse_review_feed(
+        xml, {"https://www.publicbooks.org/already/"}
+    )
+
+    assert entries == [{
+        "title": "Review",
+        "author": "Reviewer",
+        "url": "https://www.publicbooks.org/review",
+        "article_date": "2026-09-14",
+        "image_url": "",
+    }]
+
+
+def test_publicbooks_jina_reviews_index_discovers_article_links_and_excludes_navigation():
+    text = """Title: Reviews - Public Books
+Markdown Content:
+# Reviews
+
+## [A Review](https://www.publicbooks.org/a-review/?utm_source=site)
+
+[About](https://www.publicbooks.org/about/)
+[An Author](https://www.publicbooks.org/author/reviewer/)
+[Another Review](https://www.publicbooks.org/another-review/)
+"""
+
+    entries = publicbooks_rss.parse_review_index_markdown(
+        text, {"https://www.publicbooks.org/another-review/"}
+    )
+
+    assert entries == [{
+        "title": "A Review",
+        "author": "",
+        "url": "https://www.publicbooks.org/a-review",
+        "article_date": "",
+        "image_url": "",
+    }]
+
+
+def test_publicbooks_jina_parser_extracts_complete_review_and_rejects_captcha_or_preview():
+    body = _long_text("The review argues")
+    text = f"""Title: A Public Books Review
+URL Source: https://www.publicbooks.org/a-review/
+Published Time: 2026-09-14T15:00:00+00:00
+Author: Reviewer Name
+Markdown Content:
+# A Public Books Review
+
+![Cover](https://example.com/cover.jpg)
+
+{body}
+
+The review ends with a complete sentence.
+"""
+
+    article = publicbooks_rss.parse_jina_article(
+        text, "https://www.publicbooks.org/a-review/?utm_source=feed"
+    )
+
+    assert article is not None
+    assert article["source"] == "PUBLICBOOKS"
+    assert article["title"] == "A Public Books Review"
+    assert article["author"] == "Reviewer Name"
+    assert article["url"] == "https://www.publicbooks.org/a-review"
+    assert article["article_date"] == "2026-09-14"
+    assert article["image_url"] == "https://example.com/cover.jpg"
+    assert article["text"].rstrip().endswith("complete sentence.")
+
+    assert publicbooks_rss.parse_jina_article(
+        "Title: Blocked\nMarkdown Content:\nsgcaptcha: verify you are human",
+        "https://www.publicbooks.org/blocked/",
+    ) is None
+    assert publicbooks_rss.parse_jina_article(
+        text.replace("The review ends with a complete sentence.", "Continue reading…"),
+        "https://www.publicbooks.org/a-review/",
+    ) is None

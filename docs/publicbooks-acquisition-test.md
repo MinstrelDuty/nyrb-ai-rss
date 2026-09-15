@@ -1,21 +1,23 @@
 # Public Books — Reviews acquisition test
 
-Research date: 2026-09-15. This test used anonymous HTTPS requests only. No
-login, subscription cookie, paywall workaround, CAPTCHA, proxy scraping
-service, or access-control bypass was used.
+Research date: 2026-09-15. Initial research used anonymous HTTPS requests
+only. After explicit approval to reuse the existing TLS pattern, the branch
+now also contains a **manual-test-only** collector that asks Jina Reader for
+the Reviews index and article Markdown. It is not wired into `main.yml` or any
+scheduled workflow.
 
 ## Result
 
-**Classification: C — local and cloud acquisition are not stable enough to
-implement.**
+**Status: manual cloud validation pending.**
 
-Public Books exposes useful public discovery metadata, but its full article
-HTML is guarded by user-agent-sensitive access control. A normal Python
-Requests identity (the natural implementation and an Actions-like probe) and
-a normal Chrome identity receive HTTP 403 for the category and article pages.
-A generic `Mozilla/5.0` identity happens to receive HTTP 200, but relying on
-that difference would be selecting a user-agent to evade the site's bot
-policy, which is explicitly out of scope.
+Public Books exposes useful public discovery metadata, but direct access is
+currently guarded. On the latest local retest, the RSS feed, Reviews feed and
+sitemap all returned an `sgcaptcha` HTML response (HTTP 202), rather than
+their public XML. This is why a normal feed-only collector is not sufficient.
+The new collector deliberately follows TLS: direct RSS is preferred when it
+is valid XML; otherwise Jina Reader renders the official Reviews page and
+each resulting article. The collector rejects CAPTCHA, login/subscription,
+preview, ellipsis-ended and too-short responses before writing raw Markdown.
 
 ## Public entry points
 
@@ -61,14 +63,17 @@ sitemap are accessible without a special UA, while category/article HTML is
 not. Chrome-like requests returned the site's 403 page (about 75 KB), and
 default Requests article responses returned a short 403 body.
 
-## Decision
+## Current implementation and decision gate
 
-No `publicbooks_rss.py`, local crawler, raw files, workflow, or production
-configuration was added. The RSS and sitemap endpoints are worth keeping as
-future discovery references, but they do not provide complete正文, and using a
-UA selected to get around the article-page block would violate the acquisition
-constraints.
+This branch now adds `publicbooks_rss.py` and the manual-only
+`.github/workflows/publicbooks-test.yml`. They use the existing raw archive
+format, canonical URL de-duplication and strict incomplete-body rejection.
+They do not modify the six existing collectors, Work/Sheet/publishing/web
+layers, or any cron workflow.
 
-Public Books should be reconsidered only if it publishes a stable full-content
-feed/API or changes the access policy so that an ordinary GitHub Actions
-Requests client can retrieve article HTML without special handling.
+The local runtime cannot currently connect to `r.jina.ai` (TLS EOF), so it
+cannot serve as a full-body validation environment. The workflow is the
+decision gate: Public Books can be classified as **A** only if GitHub Actions
+retrieves complete bodies for current Reviews samples and the collector writes
+valid raw Markdown. If the same request fails or returns previews, the code
+remains an unmerged experiment and the source remains **C**.
