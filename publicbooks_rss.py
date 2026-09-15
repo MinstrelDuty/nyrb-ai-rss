@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 SOURCE = "PUBLICBOOKS"
 FEED_URL = "https://www.publicbooks.org/feed/"
-REVIEWS_URL = "https://www.publicbooks.org/category/reviews/"
 RAW_ROOT = Path("raw")
 FEED_ATTEMPTS = 3
 JINA_HEADERS = {"Accept": "text/markdown", "X-No-Cache": "true"}
@@ -40,10 +39,6 @@ _BLOCKED_RE = re.compile(
     re.I,
 )
 _PREVIEW_RE = re.compile(r"\b(?:subscribe|sign\s+in|log\s+in|continue\s+reading|preview[- ]only)\b", re.I)
-_INDEX_EXCLUDED_PATHS = (
-    "/about/", "/author/", "/category/", "/contact/", "/donate/", "/feed/",
-    "/privacy/", "/subscribe/", "/tag/", "/terms/", "/wp-",
-)
 
 
 def _text(node: ET.Element | None) -> str:
@@ -106,47 +101,6 @@ def parse_review_feed(
                 "url": url,
                 "article_date": _article_date(_text(item.find("pubDate"))),
                 "image_url": image_url,
-            }
-        )
-        if len(articles) >= max_items:
-            break
-    return articles
-
-
-def parse_review_index_markdown(
-    text: str, existing_urls: set[str], max_items: int = 30
-) -> list[dict[str, str]]:
-    """Extract article links from Jina's rendering of the official Reviews page."""
-
-    known_urls: set[str] = set()
-    for value in existing_urls:
-        try:
-            known_urls.add(canonicalize_url(value))
-        except (TypeError, ValueError):
-            continue
-    articles: list[dict[str, str]] = []
-    body = _clean_jina_body(text)
-    for title, value in re.findall(r"\[([^\]]+)\]\((https?://[^\s)]+)", body):
-        try:
-            url = canonicalize_url(value)
-        except (TypeError, ValueError):
-            continue
-        match = re.match(r"https?://(?:www\.)?publicbooks\.org(?P<path>/.*)?$", url, re.I)
-        if not match:
-            continue
-        path = match.group("path") or "/"
-        path_for_filter = f"{path.rstrip('/')}/"
-        if path == "/" or any(excluded in path_for_filter for excluded in _INDEX_EXCLUDED_PATHS):
-            continue
-        if url in known_urls or any(entry["url"] == url for entry in articles):
-            continue
-        articles.append(
-            {
-                "title": re.sub(r"\s+", " ", title).strip(),
-                "author": "",
-                "url": url,
-                "article_date": "",
-                "image_url": "",
             }
         )
         if len(articles) >= max_items:
@@ -252,17 +206,8 @@ def get_latest_reviews(existing_urls: set[str], max_items: int = 20) -> list[dic
         if attempt < FEED_ATTEMPTS:
             logger.warning("Public Books RSS unavailable (%s); retrying", last_error)
             time.sleep(2)
-    logger.warning("Public Books RSS is unavailable as XML (%s); using Jina Reviews index", last_error)
-
-    try:
-        response = requests.get(f"https://r.jina.ai/{REVIEWS_URL}", headers=JINA_HEADERS, timeout=45)
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        logger.error("Public Books Jina Reviews-index fetch failed: %s", exc)
-        return []
-    articles = parse_review_index_markdown(response.text, existing_urls, max_items=max_items)
-    logger.info("Public Books Jina Reviews-index discovery found %d unprocessed Reviews", len(articles))
-    return articles
+    logger.warning("Public Books RSS is unavailable as XML (%s); skipping this run", last_error)
+    return []
 
 
 def scrape_article_via_jina(metadata: dict[str, str]) -> dict[str, str | int] | None:

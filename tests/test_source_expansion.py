@@ -140,31 +140,6 @@ def test_publicbooks_feed_discovers_only_new_reviews_and_canonicalizes_urls():
     }]
 
 
-def test_publicbooks_jina_reviews_index_discovers_article_links_and_excludes_navigation():
-    text = """Title: Reviews - Public Books
-Markdown Content:
-# Reviews
-
-## [A Review](https://www.publicbooks.org/a-review/?utm_source=site)
-
-[About](https://www.publicbooks.org/about/)
-[An Author](https://www.publicbooks.org/author/reviewer/)
-[Another Review](https://www.publicbooks.org/another-review/)
-"""
-
-    entries = publicbooks_rss.parse_review_index_markdown(
-        text, {"https://www.publicbooks.org/another-review/"}
-    )
-
-    assert entries == [{
-        "title": "A Review",
-        "author": "",
-        "url": "https://www.publicbooks.org/a-review",
-        "article_date": "",
-        "image_url": "",
-    }]
-
-
 def test_publicbooks_retries_captcha_response_before_falling_back_to_jina(monkeypatch):
     xml = """<rss xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><item>
       <title>Recovered Review</title><link>https://www.publicbooks.org/recovered/</link>
@@ -195,6 +170,25 @@ def test_publicbooks_retries_captcha_response_before_falling_back_to_jina(monkey
 
     assert [article["url"] for article in articles] == ["https://www.publicbooks.org/recovered"]
     assert calls == [publicbooks_rss.FEED_URL, publicbooks_rss.FEED_URL]
+
+
+def test_publicbooks_skips_run_when_rss_remains_captcha_blocked(monkeypatch):
+    calls = []
+
+    class Response:
+        status_code = 202
+        text = "<html>sgcaptcha</html>"
+        headers = {"content-type": "text/html"}
+
+    def fake_get(url, **_kwargs):
+        calls.append(url)
+        return Response()
+
+    monkeypatch.setattr(publicbooks_rss.requests, "get", fake_get)
+    monkeypatch.setattr(publicbooks_rss.time, "sleep", lambda _seconds: None)
+
+    assert publicbooks_rss.get_latest_reviews(set()) == []
+    assert calls == [publicbooks_rss.FEED_URL] * publicbooks_rss.FEED_ATTEMPTS
 
 
 def test_publicbooks_jina_parser_extracts_complete_review_and_rejects_captcha_or_preview():

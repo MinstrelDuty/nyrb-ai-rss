@@ -8,15 +8,16 @@ scheduled workflow.
 
 ## Result
 
-**Result: A — suitable for manual cloud collection, with guarded retries.**
+**Result: not suitable for unattended cloud collection yet.**
 
 Public Books exposes useful public discovery metadata, but direct access is
 currently guarded. On the latest local retest, the RSS feed, Reviews feed and
 sitemap all returned an `sgcaptcha` HTML response (HTTP 202), rather than
 their public XML. This is why a normal feed-only collector is not sufficient.
-The new collector deliberately follows TLS: direct RSS is preferred when it
-is valid XML; it retries a transient CAPTCHA response three times, then falls
-back to Jina Reader for the official Reviews index and each article. The
+The new collector uses the official general RSS feed only when it is valid
+XML; it retries a transient CAPTCHA response three times and skips the run if
+the feed remains blocked. Jina Reader is used only for individual article
+bodies whose current Reviews URL has already come from the official feed. The
 collector rejects CAPTCHA, login/subscription, preview, ellipsis-ended and
 too-short responses before writing raw Markdown.
 
@@ -73,10 +74,12 @@ They do not modify the six existing collectors, Work/Sheet/publishing/web
 layers, or any cron workflow.
 
 The local runtime cannot currently connect to `r.jina.ai` (TLS EOF), so it
-cannot serve as a full-body validation environment. GitHub Actions is the
-relevant production environment. Its first probe saw a transient CAPTCHA
-response; the second found six Reviews and saved four complete raw articles.
-On the repeated three-sample probe, all samples were accepted with complete
-metadata and 13,943–21,374 characters (24–33 paragraphs). The retry protects
-against the observed transient feed block; the collector still refuses any
-response it cannot validate as complete.
+cannot serve as a full-body validation environment. In GitHub Actions, one
+run found six current Reviews and saved four complete raw articles; a repeated
+three-sample probe accepted all three with complete metadata and
+13,943–21,374 characters (24–33 paragraphs). But another run received the
+CAPTCHA on all three RSS attempts. Its Jina-rendered category page was stale,
+returning May–July articles rather than current September items, so it is not
+used for discovery. The guarded collector now skips rather than archives stale
+content in that case. This is safe for manual use but not sufficiently
+consistent for an unattended production source.
