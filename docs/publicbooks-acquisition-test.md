@@ -8,7 +8,7 @@ scheduled workflow.
 
 ## Result
 
-**Result: not suitable for unattended cloud collection yet.**
+**Result: C — not suitable for unattended cloud collection yet.**
 
 Public Books exposes useful public discovery metadata, but direct access is
 currently guarded. On the latest local retest, the RSS feed, Reviews feed and
