@@ -131,6 +131,11 @@ def _canonical_files_by_url(root: Path) -> dict[str, list[Path]]:
 
 def _render_article(record: dict[str, Any]) -> str:
     metadata = {key: record[key] for key in REQUIRED_COLUMNS if key != "body_markdown"}
+    # Legacy items need explicit provenance because their processed_at value is
+    # the migration timestamp, not the original editorial processing time.
+    for key in ("legacy_migrated", "migration_source"):
+        if key in record:
+            metadata[key] = record[key]
     return render_frontmatter(metadata, record["body_markdown"])
 
 
