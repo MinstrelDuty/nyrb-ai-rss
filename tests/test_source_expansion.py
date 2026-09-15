@@ -165,6 +165,38 @@ Markdown Content:
     }]
 
 
+def test_publicbooks_retries_captcha_response_before_falling_back_to_jina(monkeypatch):
+    xml = """<rss xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><item>
+      <title>Recovered Review</title><link>https://www.publicbooks.org/recovered/</link>
+      <dc:creator>Reviewer</dc:creator><pubDate>Sun, 14 Sep 2026 15:00:00 +0000</pubDate>
+      <category>Reviews</category>
+    </item></channel></rss>"""
+    calls = []
+
+    class Response:
+        def __init__(self, status_code, text, content_type):
+            self.status_code = status_code
+            self.text = text
+            self.headers = {"content-type": content_type}
+
+        def raise_for_status(self):
+            return None
+
+    def fake_get(url, **_kwargs):
+        calls.append(url)
+        if len(calls) == 1:
+            return Response(202, "<html>sgcaptcha</html>", "text/html")
+        return Response(200, xml, "application/rss+xml")
+
+    monkeypatch.setattr(publicbooks_rss.requests, "get", fake_get)
+    monkeypatch.setattr(publicbooks_rss.time, "sleep", lambda _seconds: None)
+
+    articles = publicbooks_rss.get_latest_reviews(set())
+
+    assert [article["url"] for article in articles] == ["https://www.publicbooks.org/recovered"]
+    assert calls == [publicbooks_rss.FEED_URL, publicbooks_rss.FEED_URL]
+
+
 def test_publicbooks_jina_parser_extracts_complete_review_and_rejects_captcha_or_preview():
     body = _long_text("The review argues")
     text = f"""Title: A Public Books Review

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -26,6 +27,7 @@ SOURCE = "PUBLICBOOKS"
 FEED_URL = "https://www.publicbooks.org/feed/"
 REVIEWS_URL = "https://www.publicbooks.org/category/reviews/"
 RAW_ROOT = Path("raw")
+FEED_ATTEMPTS = 3
 JINA_HEADERS = {"Accept": "text/markdown", "X-No-Cache": "true"}
 FEED_HEADERS = {
     "User-Agent": "NYRB-AI-RSS/1.0 (+https://github.com/MinstrelDuty/nyrb-ai-rss)",
@@ -233,19 +235,24 @@ def parse_jina_article(
 
 
 def get_latest_reviews(existing_urls: set[str], max_items: int = 20) -> list[dict[str, str]]:
-    try:
-        response = requests.get(FEED_URL, headers=FEED_HEADERS, timeout=30)
-        if response.status_code == 200 and "<rss" in response.text[:500].lower():
-            articles = parse_review_feed(response.text, existing_urls, max_items=max_items)
-            logger.info("Public Books RSS discovery found %d unprocessed Reviews", len(articles))
-            return articles
-        logger.warning(
-            "Public Books RSS is unavailable as XML (status=%s, content-type=%s); using Jina Reviews index",
-            response.status_code,
-            response.headers.get("content-type", ""),
-        )
-    except requests.RequestException as exc:
-        logger.warning("Public Books RSS discovery failed: %s; using Jina Reviews index", exc)
+    last_error = ""
+    for attempt in range(1, FEED_ATTEMPTS + 1):
+        try:
+            response = requests.get(FEED_URL, headers=FEED_HEADERS, timeout=30)
+            if response.status_code == 200 and "<rss" in response.text[:500].lower():
+                articles = parse_review_feed(response.text, existing_urls, max_items=max_items)
+                logger.info("Public Books RSS discovery found %d unprocessed Reviews", len(articles))
+                return articles
+            last_error = "status=%s, content-type=%s" % (
+                response.status_code,
+                response.headers.get("content-type", ""),
+            )
+        except requests.RequestException as exc:
+            last_error = str(exc)
+        if attempt < FEED_ATTEMPTS:
+            logger.warning("Public Books RSS unavailable (%s); retrying", last_error)
+            time.sleep(2)
+    logger.warning("Public Books RSS is unavailable as XML (%s); using Jina Reviews index", last_error)
 
     try:
         response = requests.get(f"https://r.jina.ai/{REVIEWS_URL}", headers=JINA_HEADERS, timeout=45)
