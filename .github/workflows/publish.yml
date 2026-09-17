@@ -2,6 +2,8 @@ name: Publish reviewed Sheet articles
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 22 * * 0,3'
 
 jobs:
   publish:
