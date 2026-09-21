@@ -122,6 +122,8 @@ def _canonical_files_by_url(root: Path) -> dict[str, list[Path]]:
     for path in sorted(root.rglob("*.md")):
         try:
             metadata, _ = parse_frontmatter(path.read_text(encoding="utf-8"))
+            if str(metadata.get("status", "")).strip().lower() != "published":
+                continue
             url = canonicalize_url(str(metadata.get("url", "")))
         except (OSError, ValueError):
             continue
@@ -163,6 +165,19 @@ def write_canonical_articles(records: Iterable[dict[str, Any]], articles_root: P
 
 def import_csv_text(csv_text: str, articles_root: Path = Path("data/articles")) -> list[Path]:
     return write_canonical_articles(published_records_from_csv(csv_text), Path(articles_root))
+
+
+def import_new_csv_text(csv_text: str, articles_root: Path = Path("data/articles")) -> list[Path]:
+    """Write only published Sheet rows whose canonical URLs are not archived yet."""
+
+    root = Path(articles_root)
+    existing_urls = set(_canonical_files_by_url(root))
+    records = (
+        record
+        for record in published_records_from_csv(csv_text)
+        if record["url"] not in existing_urls
+    )
+    return write_canonical_articles(records, root)
 
 
 def _record_from_file(path: Path) -> dict[str, Any] | None:

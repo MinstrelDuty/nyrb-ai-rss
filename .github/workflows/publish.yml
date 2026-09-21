@@ -3,7 +3,12 @@ name: Publish reviewed Sheet articles
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 22 * * 0,3'
+    - cron: '*/15 21-23 * * 0,3'
+    - cron: '0 0 * * 1,4'
+
+concurrency:
+  group: publish-reviewed-articles
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -27,10 +32,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Import approved Sheet rows
-        run: python scripts/import_sheet.py
+      - name: Import new published Sheet rows
+        id: import
+        run: python scripts/import_sheet.py --new-only
 
       - name: Build website data and RSS feeds
+        if: steps.import.outputs.new_articles != '0'
         run: |
           python scripts/build_articles_json.py
           python scripts/build_rss.py
@@ -41,6 +48,7 @@ jobs:
           node --test tests/*.test.js
 
       - name: Commit published artifacts when changed
+        if: steps.import.outputs.new_articles != '0'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"

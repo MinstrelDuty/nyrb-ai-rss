@@ -10,7 +10,13 @@ import pytest
 
 from scripts.build_articles_json import build_articles_json
 from scripts.build_rss import build_rss
-from scripts.publishing import REQUIRED_COLUMNS, import_csv_text, load_articles, published_records_from_csv
+from scripts.publishing import (
+    REQUIRED_COLUMNS,
+    import_csv_text,
+    import_new_csv_text,
+    load_articles,
+    published_records_from_csv,
+)
 from scripts.utils import canonicalize_url, parse_frontmatter, render_frontmatter
 from scripts.migrate_legacy_rss import html_to_markdown, migrate_legacy_feeds, parse_legacy_description
 
@@ -223,6 +229,73 @@ def test_repeating_the_same_sheet_produces_identical_published_artifacts(tmp_pat
     second = {path.relative_to(tmp_path): path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
 
     assert second == first
+
+
+def test_new_only_import_skips_existing_canonical_url_without_modifying_it(tmp_path: Path):
+    articles_root = tmp_path / "data" / "articles"
+    first_written = import_csv_text(_csv([_row()]), articles_root)
+    original_bytes = first_written[0].read_bytes()
+
+    written = import_new_csv_text(
+        _csv(
+            [
+                _row(
+                    body_markdown="# 不应覆盖的修订",
+                    processed_at="2026-09-15T10:00:00Z",
+                )
+            ]
+        ),
+        articles_root,
+    )
+
+    assert written == []
+    assert first_written[0].read_bytes() == original_bytes
+
+
+def test_new_only_import_writes_a_new_published_canonical_url(tmp_path: Path):
+    articles_root = tmp_path / "data" / "articles"
+
+    written = import_new_csv_text(
+        _csv([_row(url="https://example.com/new-published")]),
+        articles_root,
+    )
+
+    assert len(written) == 1
+    assert load_articles(articles_root)[0]["url"] == "https://example.com/new-published"
+
+
+def test_new_only_import_does_not_treat_a_review_file_as_published(tmp_path: Path):
+    articles_root = tmp_path / "data" / "articles"
+    review = _row(status="review", url="https://example.com/review-then-published")
+    review_path = articles_root / "lrb" / "review.md"
+    review_path.parent.mkdir(parents=True, exist_ok=True)
+    review_path.write_text(
+        render_frontmatter(
+            {key: value for key, value in review.items() if key != "body_markdown"},
+            review["body_markdown"],
+        ),
+        encoding="utf-8",
+    )
+
+    written = import_new_csv_text(
+        _csv([_row(url="https://example.com/review-then-published")]),
+        articles_root,
+    )
+
+    assert len(written) == 1
+    assert written[0] != review_path
+
+
+def test_new_only_import_is_a_noop_when_repeated_with_the_same_sheet(tmp_path: Path):
+    articles_root = tmp_path / "data" / "articles"
+    csv_text = _csv([_row(url="https://example.com/repeated")])
+
+    first_written = import_new_csv_text(csv_text, articles_root)
+    first_bytes = first_written[0].read_bytes()
+    second_written = import_new_csv_text(csv_text, articles_root)
+
+    assert second_written == []
+    assert first_written[0].read_bytes() == first_bytes
 
 
 def test_import_accepts_the_utf8_bom_used_by_some_csv_exports():
