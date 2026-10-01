@@ -1,0 +1,27 @@
+---
+source: "NYRB"
+title: "Parsley, Sage, Rosemary, and Ree"
+author: "Nicole Rudick"
+url: "https://www.nybooks.com/articles/2026/10/22/parsley-sage-rosemary-and-ree-mayer-morton"
+article_date: "2026-10-22"
+captured_at: "2026-10-01T14:56:00Z"
+image_url: "https://www.nybooks.com/wp-content/uploads/2026/09/rudick_1-102226-1200.jpg"
+status: "raw"
+---
+# 正文
+
+“Flesh mixed with gowns, like kneaded satin; that is the substance of flowers.” The line comes from *The Voice of Things* (1942), a book of prose poems by Francis Ponge in which he muses on the beauty of the commonplace—the erratic flight of butterflies, the pleasure of opening and closing doors—eager to see past an object’s functional existence into a life beyond.
+
+The artist Rosemary Mayer was drawn to the idea of setting one’s sights on this rich existence of the ordinary material world. She once used Ponge’s line to characterize her sculpture *Proserpina* (1975), named for the Roman goddess of springtime whose return from the underworld at the end of each winter revived the earth’s flora. This cycle could be seen, Mayer wrote, in the “layered sleeves and robes of historical women’s clothing, recurring spirals, rising and descending.” In *Proserpina*, eleven vertical yellow wooden rods, enrobed in layers of gray and maroon wire netting, increase in length around a wire-mesh spiral that reaches three feet at its tallest point. Read counterclockwise, the entire structure suggests ascension; read clockwise, it descends.
+
+*Proserpina* is one of two centerpieces of a small yet effective pairing of rarely seen work by Mayer and Ree Morton from the 1970s and early 1980s at the gallery Gordon Robichaux. Mayer and Morton, who met in New York in the 1970s and were friends, shared an affinity for incorporating fabrics, flowers, and language into work that celebrated women and linked personal history to public display. Morton took inspiration from Neltje Blanchan’s 1917 illustrated book *Wild Flowers Worth Knowing*, a copy of which is on view alongside a handwritten list of tropical plants that Mayer made around 1975. The visual potential of some of the entries from the two documents—“firewheel tree,” “toadflax,” and “heal-all”—is borne out in the artists’ work.
+
+The other centerpiece of the show is Morton’s sculpture *Devil Chaser*, made the same year as *Proserpina*. “Devil chaser” is another name for Saint-John’s-wort, a flowering herb used in medicinal remedies. In the nearly four-foot-long work, a plantlike cage is attached to what might be a ground snare or a captured devil’s tail. Snippets from Blanchan’s commentary about the plant appear on nearby plaques: “TO REVEAL THE PRESENCE OF WITCHES,” “TO WARD OFF DESTRUCTION BY LIGHTNING,” “TO CURE DEMONIACS.”
+
+In 1974 Morton discovered Celastic, a material widely used in the theater industry that acts like fabric but cures to a rigid form. For *Devil Chaser*, she wrapped the wire armature in Celastic and painted it a mottled peachy pink. She then embellished the cage-like end with Celastic ribbons in bright colors. Red coils dangle playfully from the loop at the other end—perhaps exotic blooms, devilish tendrils, or attractive bait. Set on a rectangle of green, *Devil Chaser* was, in its original form, bordered by an undulating decorative fence, giving it the appearance of a tidy garden or a place of protection. (These sections of fence have been distributed around the perimeter of the room in order to “expand” the garden, though their purpose and effect are diminished.)
+
+The show also includes thirteen drawings and paintings by the two artists. Mayer’s watercolors AS SAFE AS HOUSES, HARMLESS DAYS, and NOW WITH A WHOLE SKIN, all from 1983, join tender renderings of flowers with idioms related to safety, a sentiment that rhymes with *Devil Chaser*. The petaled flower heads in Mayer’s exquisite watercolor *Date Column* (1976) have the look of gathered fabric—an effect echoed in Morton’s cheerful Celastic bows, or *Beaux* (circa 1974), as she titled them, two of which ornament opposite walls. Hung around the gallery like signposts are word paintings from Morton’s celebratory installation *Signs of Love* (1976). “Gestures,” “Settings,” “Atmospheres”—the words are redolent of art making, gardens, and life.
+
+Another major element at play in the show is friendship. In 1975 Morton created the installation *Something in the Wind*, comprising more than a hundred hand-sewn and painted flags, each dedicated to a family member, friend, or artist, inspired by a book Mayer loaned her about coats of arms. For the installation, she raised the flags on the rigging of a ship at the South Street Seaport. The flag representing Mayer bears a butterfly and stitched letters spelling out “ROSEMARY.” On April 30, 1977, Morton died in a car crash. Mayer wrote to a friend about her difficulty processing Morton’s death, deciding that “Ree floats in instead,” suggesting that the loss and her feelings about it would always be airy, elusive things. The next year she made *Some Days in April*, a “temporary monument” in which she wrote the names of deceased friends and family on balloons. Near Morton’s flag in the show hangs Mayer’s *Some Days in April (Helen)* (1978), a drawing of the balloon she’d made for Morton. It displays Morton’s given name, Helen; Mayer’s chosen name, Catherine; and the words “Arcturus” and “Narcissus,” a star and a flower that reappear each spring.
+
+Advertisement
