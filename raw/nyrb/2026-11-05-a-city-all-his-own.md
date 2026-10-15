@@ -1,0 +1,25 @@
+---
+source: "NYRB"
+title: "A City All His Own"
+author: "Joel Smith"
+url: "https://www.nybooks.com/articles/2026/11/05/a-city-all-his-own-baldwin-lee"
+article_date: "2026-11-05"
+captured_at: "2026-10-15T12:57:16Z"
+image_url: "https://www.nybooks.com/wp-content/uploads/2026/10/smith_1-110526-1200.jpg"
+status: "raw"
+---
+# 正文
+
+New York City, as photographed by Baldwin Lee in the latter half of the 1970s, looks as immemorially still as cities do in photographs made over a century earlier, when slow emulsions and long exposure times erased anything that moved while the shutter was open. Lee was raised in Chinatown. In 1975 he was seeing his hometown anew after seven years away at college and graduate school. He photographed mainly within a quarter-mile of the Brutalist complex on Worth Street that was his home base on return visits. From there he visited downtown locales he had known all his life, some changed or lost to change. A customary haunt, Radio Row, had been razed to make way for the towers of the World Trade Center, which dominated the skyline from every angle. Amid vistas he felt compelled to depict, he was put off by the sight of latter-day New Yorkers garbed in the styles of a new era. He hit on a simple way of unpeopling scenes: setting out before sunrise, he would carry his tripod, film holders, and 4×5 view camera to a chosen vantage point and photograph before the area stirred to life.
+
+The city as an empty stage or movie set constitutes a grand tradition in still photography. Charles Marville’s records of Paris under Haussmann were followed a generation later by Eugène Atget’s historical vignettes of “old Paris.” The dissolving montages of his work in Harold Becker’s film *Eugène Atget* (1963) inspired Duane Michals to head out in early mornings and make hundreds of peopleless photographs for his series *Empty New York* (1964–1965). Two years later, as crews of workmen began tearing down whole neighborhoods to clear space for the World Trade Center, Danny Lyon made views of the vast abandoned work zone that push Michals’s mood of World War III premonition one step further.
+
+Lee, happily oblivious to this history, felt free to shape an idiom he had discovered independently. He was free of other lumber, too. In a gallery conversation shortly after the exhibition’s opening, he said New York’s dire political and fiscal crises of the 1970s “never entered my mind.” Nor did he have any desire to find himself a community, artistic or ethnic or otherwise. (“I was not a joiner.”) His photographs portray an entirely public side of the city, but their preoccupations are personal. Lee had moved only recently from a 35mm to the 4×5, a format that had figured crucially in the work of both Minor White and Walker Evans, his mentors at MIT and Yale, respectively. Now, trying his wings, he pushed to exquisite ends the unique formal capacities of the view camera, in particular the way it allows the user to swing, tilt, and reposition the lens relative to the camera back, producing perspectives foreign to everyday optical experience. As Lee puts it, “I was *drawing*.”
+
+Despite favoring serene uprights and orthogonal angles in his compositions, by deftly handling the lens Lee avoids even a hint of spatial distortion. The volumes in these images feel natural, the voids inhabitable. The eye does not see this way—all the lines in a busy city are headed, however subtly, for vanishing points—but the mind knows a city’s verticals are vertical, and Lee delivers the city as you want to believe you see it. Some of the digital silver prints made for the exhibition are as large as forty by fifty inches, large enough to envelop the viewer, but even at great scale the unshowy inner intelligence of the pictures holds up.
+
+For a taste of Lee’s labors, take out your phone and compare *Nassau Street* (1975–1979), which heads up the exhibition, with the Google Street View of Nassau Street at Cedar, a spot nearly unchanged since that time. In Lee’s hands, Nassau’s parading neoclassical confections—Barclays Bank, Federal Hall, the New York Stock Exchange, 50 Broad Street—recede steeply into the distance, downhill, and around a bend; yet none, even the most distant, gets lost in the crowd.
+
+More striking than period details in these pictures are some period absences: almost no graffiti (when it appears, it concerns labor union politics) and strictly nonelectronic advertising. The Twin Towers soar in several images, always in unabashedly heroic mode; their star power was “obvious,” Lee recalls, and pointless to resist. The pictures with which Lee burst into prominence in the photo world—4×5 portraits of Black Americans made on back roads of the South in the 1980s, published in a monograph two years ago—were not the slightest dot on the horizon of his imagination as he did this work. But he was honing the abilities that would make that work possible: balancing central focus against overall complexity, reconciling order with liveliness, infusing acts of witness with personality.
+
+Advertisement
